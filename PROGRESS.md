@@ -16,7 +16,7 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 ## Current status
 
 - **Current milestone:** 5. Export, history and evaluation
-- **Next step:** Try the review screen on a real letter; then build Milestone 5
+- **Next step:** Finish the quality evaluation (running on postings 01–08; 09 and 10 need pasted LinkedIn text) and score it in `scores.csv`
 - **Last updated:** 2026-10-01
 
 ## Build order
@@ -29,7 +29,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2 | Resume and profile | 1. Cover letter | Done |
 | 3 | Fetch and draft | 1. Cover letter | Done |
 | 4 | Verify, review and approve | 1. Cover letter | Done |
-| 5 | Export, history and evaluation | 1. Cover letter | Not started |
+| 5 | Export, history and evaluation | 1. Cover letter | In progress (awaiting the quality evaluation) |
 | 10 | Saved searches and Adzuna | 3. Job search | Not started |
 | 11 | Filtering and fit scoring | 3. Job search | Not started |
 | 12 | Hand-off and schedule | 3. Job search | Not started |
@@ -63,10 +63,10 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Editing after approval resets the status to `draft`
 
 **Milestone 5. Export, history and evaluation**
-- [ ] .docx and PDF export of approved letters
-- [ ] Applications list with status, searchable by company or title
-- [ ] Application detail page shows the saved job description (even after the original posting is gone), the letter version sent, key dates and a notes log
-- [ ] All tests pass
+- [x] .docx and PDF export of approved letters (PDF checked with Microsoft Word)
+- [x] Applications list with status, searchable by company or title
+- [x] Application detail page shows the saved job description (even after the original posting is gone), the letter version sent, key dates and a notes log
+- [x] All tests pass (187 passed, 1 skipped: the real Word conversion, run on demand with `JOBAGENTS_PDF_TEST=1`)
 - [ ] Quality evaluation (`scripts/eval.py`) meets the success criteria in the spec's Overview & goals
 
 ### Phase 3: Job search agent
@@ -147,6 +147,12 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-01 | Export buttons are shown but disabled; they stay disabled after approval until Milestone 5 builds the exporter | Milestone 4 acceptance covers the gate only | n/a |
 | 2026-10-01 | The banned-phrase list can be edited from Profile & resume ("Edit list"). It's saved to `agent/style/banned_phrases.txt`, which is tracked in git | Mockup shows "Banned phrases: 10 · Edit list" | n/a |
 | 2026-10-01 | Effort: humanize `low`, verify `medium`. All five steps took 85 seconds on a real posting (verify 30 s) | Verify is the safety check, so it gets more effort; user chose to keep verify at `medium` over saving ~15 seconds | Yes |
+| 2026-10-01 | Export template: your name (bold), a contact line (city, email, phone, LinkedIn, portfolio), the date, then the letter; Calibri 11 pt, 1-inch margins. Always exports the version you approved, even if newer drafts exist | Spec default: "a simple template with your name and contact details at the top" | n/a |
+| 2026-10-01 | PDF export runs docx2pdf (Microsoft Word) in a separate process with a 2-minute limit, then LibreOffice if installed. If neither works, the .docx is still saved and you're told why | Spec: "PDF via docx2pdf or LibreOffice"; a separate process keeps Word's automation off Streamlit's threads | n/a |
+| 2026-10-01 | Exports are saved to `output/` and offered as a download button. Submitted letters can still be exported | Spec: exported letters live in `output/` | n/a |
+| 2026-10-01 | Application detail adds "Mark as submitted" (records `submitted_at`), Archive and Restore. Restore returns to submitted, approved or draft based on the dates on record | Spec's lookup needs "the dates you ... applied", and the app never submits anything itself | n/a |
+| 2026-10-01 | "Your answers" tab on the detail page is a placeholder until Phase 2 | Filled answers come from the application agent | n/a |
+| 2026-10-01 | `scripts/eval.py` reads a manifest (`tests/fixtures/real/postings.json`, gitignored) with expected company and title, optional notes and a weak-match flag; asks before spending money unless `--yes`; writes `report.md`, per-posting letters and verifier reports, and `scores.csv` for the judgment calls to `output/eval/<date-time>/` | Spec: run all 10, save drafts and verifier reports side by side; the manifest makes results comparable run to run | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
@@ -167,6 +173,12 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-01 (Milestone 5, in progress)
+- Worked on: Milestone 5, export, history and evaluation
+- Completed: .docx export (simple header with name and contact details) and PDF via docx2pdf/Word in a separate process, gated on approval and always using the approved version; download button on the review screen. Applications list per the mockup (search, All / In progress / Submitted / Archived with counts, status, letter state with flag counts, last activity, next-step button). Application detail per the mockup (key dates, saved job description, letter sent, "Your answers" placeholder for Phase 2, dated notes log, Mark as submitted, Archive, Restore). `scripts/eval.py` with a gitignored manifest of the 10 real postings. Remaining spec tests added (job notes supported by notes in the verifier; export refused for drafts).
+- Tests: 187 passed, 1 skipped (real Word conversion, passed when run on demand).
+- In progress: quality evaluation of postings 01–08 with the user's resume; 09 and 10 (LinkedIn) need pasted text.
 
 ### 2026-10-01 (Milestone 4)
 - Worked on: Milestone 4, verify, review and approve

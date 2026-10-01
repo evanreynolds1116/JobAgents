@@ -283,3 +283,12 @@ def test_quotes_survive_pdf_line_breaks_and_punctuation():
     checked = pipeline.check_claims(result, "Draft Day", {"resume": resume_text})
     assert checked["claims"][0]["supported"] is True
     assert checked["claims"][1]["supported"] is False  # changed facts still fail
+
+
+def test_verifier_marks_note_facts_as_supported_by_notes():
+    """Spec test: a fixture with notes produces a draft that uses them, and the
+    verifier marks those claims as supported by notes."""
+    *_, letter, checked = replay("hockey_with_notes")
+    from_notes = [c for c in checked["claims"] if c["source"] == "notes"]
+    assert from_notes and all(c["supported"] for c in from_notes)
+    assert any("league" in c["claim"] for c in from_notes)

@@ -7,16 +7,17 @@ and any change after approval returns it to draft.
 """
 
 import re
-from datetime import datetime
 from html import escape
+from pathlib import Path
 
 import streamlit as st
 
 from agent import lint, pipeline
+from export import docx as exporter
 from export.docx import can_export
 from storage import db
 from storage import profile as profile_store
-from ui import drafting, nav
+from ui import dates, drafting, nav
 
 STRENGTH_LABEL = {"strong": "Strong", "partial": "Partial", "none": "None"}
 
@@ -78,7 +79,7 @@ def review_page() -> None:
     by_version = {d["version"]: d for d in drafts}
     viewing = by_version.get(st.session_state.get(f"rv_version_{app_id}"), latest)
     is_latest = viewing["version"] == latest["version"]
-    approved = app["status"] == "approved"
+    approved = app["status"] in ("approved", "submitted")  # the approved letter is final
 
     _header(app, latest, approved)
     _messages()
@@ -100,8 +101,10 @@ def review_page() -> None:
             _review_card(app_id, latest)
         elif approved and is_latest:
             with st.container(border=True, key="card_approved"):
-                st.markdown(f"**Approved** version {app['sent_version']} on {_when(app['approved_at'])}.")
+                st.markdown(f"**Approved** version {app['sent_version']} on {dates.full(app['approved_at'])}.")
                 st.caption("Editing or redrafting returns the letter to draft.")
+                if st.button("Application details"):
+                    nav.go("detail", app=app_id)
         _ask_for_changes(app_id)
         _match_card(app.get("match_json"))
         _versions_card(app_id, drafts, viewing)
@@ -116,7 +119,7 @@ def _header(app: dict, latest: dict, approved: bool) -> None:
         st.markdown(f'<p class="ja-crumb">Applications › {escape(company)}</p>', unsafe_allow_html=True)
         st.title(app.get("title") or "Untitled job")
         chip = "ja-strong" if approved else "ja-partial"
-        state = "Approved" if approved else "Draft"
+        state = {"approved": "Approved", "submitted": "Submitted"}.get(app["status"], "Draft")
         version = app["sent_version"] if approved else latest["version"]
         parsed = app.get("parsed_json") or {}
         facts = [company] + ([parsed["location"]] if parsed.get("location") else [])
@@ -130,9 +133,13 @@ def _header(app: dict, latest: dict, approved: bool) -> None:
         )
     with action:
         if approved:
-            st.button("Approved", disabled=True, width="stretch", key="rv_approved_badge")
+            st.button(state_label(app), disabled=True, width="stretch", key="rv_approved_badge")
         else:
             _approve_button(app["id"], latest)
+
+
+def state_label(app: dict) -> str:
+    return "Submitted" if app["status"] == "submitted" else "Approved"
 
 
 def _approve_button(app_id: int, latest: dict) -> None:
@@ -141,7 +148,7 @@ def _approve_button(app_id: int, latest: dict) -> None:
     locked = needs_review and not reviewed
     if st.button("Approve letter", type="primary", disabled=locked, width="stretch", key="rv_approve"):
         db.approve(app_id, latest["version"])
-        st.session_state.rv_success = "Approved. This version is now final; export unlocks in Milestone 5."
+        st.session_state.rv_success = "Approved. This version is now final, and you can export it below."
         st.rerun()
     if locked:
         st.caption("Review the flagged items first.")
@@ -257,9 +264,32 @@ def _old_version_banner(app_id: int, viewing: dict, latest: dict) -> None:
 def _export_row(app: dict) -> None:
     unlocked = can_export(app)
     with st.container(horizontal=True):
-        st.button("Export .docx", disabled=True, key="rv_export_docx")
-        st.button("Export PDF", disabled=True, key="rv_export_pdf")
-    st.caption("Export arrives in Milestone 5." if unlocked else "Export unlocks after you approve.")
+        want_docx = st.button("Export .docx", disabled=not unlocked, key="rv_export_docx")
+        want_pdf = st.button("Export PDF", disabled=not unlocked, key="rv_export_pdf")
+    if not unlocked:
+        st.caption("Export unlocks after you approve.")
+        return
+    key = f"rv_exported_{app['id']}"
+    drafts = db.list_drafts(app["id"])
+    if want_docx:
+        st.session_state[key] = str(exporter.export_docx(app, drafts, profile_store.load()))
+    if want_pdf:
+        with st.spinner("Making the PDF with Microsoft Word…"):
+            try:
+                st.session_state[key] = str(exporter.export_pdf(app, drafts, profile_store.load()))
+            except exporter.PdfUnavailable as exc:
+                st.session_state[key] = str(exporter.export_docx(app, drafts, profile_store.load()))
+                st.warning(str(exc))
+    if saved := st.session_state.get(key):
+        path = Path(saved)
+        if path.exists():
+            mime = ("application/pdf" if path.suffix == ".pdf" else
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            st.download_button(f"Download {path.name}", data=path.read_bytes(), file_name=path.name,
+                               mime=mime, key=f"rv_download_{app['id']}")
+            st.caption(f"Saved in the output folder: {path}")
+    else:
+        st.caption(f"Exports version {app['sent_version']}, the one you approved.")
 
 
 # --- Review panel ---------------------------------------------------------------
@@ -377,16 +407,9 @@ def _match_card(matches: dict | None) -> None:
             )
 
 
-def _when(stamp: str | None) -> str:
-    if not stamp:
-        return ""
-    t = datetime.fromisoformat(stamp)
-    return f"{t:%b} {t.day}, {t.hour % 12 or 12}:{t:%M %p}"
-
-
 def _version_label(draft: dict) -> str:
     note = f'"{draft["feedback"]}"' if draft.get("feedback") else ("First draft" if draft["version"] == 1 else "New draft")
-    return f"v{draft['version']} · {note} · {_when(draft['created_at'])}"
+    return f"v{draft['version']} · {note} · {dates.full(draft['created_at'])}"
 
 
 def _versions_card(app_id: int, drafts: list[dict], viewing: dict) -> None:

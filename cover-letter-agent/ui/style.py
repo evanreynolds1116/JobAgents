@@ -28,6 +28,11 @@ h1 { font-size: 32px !important; font-weight: 700 !important; letter-spacing: -0
 .ja-letter mark { padding: 1px 2px; border-radius: 3px; cursor: help; color: inherit; }
 mark.ja-flag-claim { background: #FBE9E7; border-bottom: 2px solid #A3261C; }
 mark.ja-flag-style { background: #FDF1E2; border-bottom: 2px solid #8A4B08; }
+[class*="st-key-ap_open_"] button { min-height: 28px; padding: 0; justify-content: flex-start; }
+[class*="st-key-ap_open_"] button p { font-size: 15px; font-weight: 600; text-align: left; }
+.st-key-card_posting h1, .st-key-card_posting h2, .st-key-card_posting h3 {
+  font-size: 17px !important; font-weight: 700 !important; padding: 8px 0 4px !important;
+}
 .ja-strength { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
 .ja-strong { background: #E3F1EE; color: #0B4F47; }
 .ja-partial { background: #FDF1E2; color: #8A4B08; }

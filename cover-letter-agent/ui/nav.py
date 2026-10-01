@@ -13,19 +13,21 @@ PAGES = {
     "applications": ("Applications", "applications", True),
     "profile": ("Profile & resume", "profile", True),
     "review": ("Review and approve", "review", False),
+    "detail": ("Application details", "application", False),
 }
 DEFAULT = "new_letter"
 
 
 def _page_function(key: str):
-    from ui import new_letter, placeholders, profile, review
+    from ui import applications, detail, new_letter, placeholders, profile, review
 
     return {
         "find_jobs": placeholders.find_jobs_page,
         "new_letter": new_letter.new_letter_page,
-        "applications": placeholders.applications_page,
+        "applications": applications.applications_page,
         "profile": profile.profile_page,
         "review": review.review_page,
+        "detail": detail.detail_page,
     }[key]
 
 

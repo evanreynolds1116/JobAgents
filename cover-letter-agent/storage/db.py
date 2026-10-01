@@ -221,3 +221,68 @@ def save_version(app_id: int, text: str, resume_hash: str, feedback: str | None 
     version = add_draft(app_id, text, resume_hash, feedback=feedback, verify=verify)
     return_to_draft(app_id)
     return version
+
+
+# --- History -----------------------------------------------------------------
+
+
+def add_note(app_id: int, text: str) -> None:
+    """Dated entry in the application's notes log (calls, interviews)."""
+    app = get_application(app_id)
+    notes = list(app.get("notes") or [])
+    notes.append({"date": _now(), "text": text.strip()})
+    update_application(app_id, notes=notes)
+
+
+def mark_submitted(app_id: int) -> None:
+    """You applied (the app never submits anything itself)."""
+    update_application(app_id, status="submitted", submitted_at=_now())
+
+
+def archive(app_id: int) -> None:
+    update_application(app_id, status="archived")
+
+
+def restore(app_id: int) -> None:
+    """Back to where it was before archiving, judged from the dates on record."""
+    app = get_application(app_id)
+    if app["submitted_at"]:
+        status = "submitted"
+    elif app["approved_at"] and app["sent_version"]:
+        status = "approved"
+    else:
+        status = "draft"
+    update_application(app_id, status=status)
+
+
+def list_applications(search: str = "") -> list[dict]:
+    """Every application with its latest draft, newest activity first.
+    `search` matches company or title, ignoring case."""
+    query = """
+        SELECT a.*, d.version AS latest_version, d.verify_json AS latest_verify,
+               d.created_at AS latest_draft_at
+        FROM applications a
+        LEFT JOIN drafts d ON d.application_id = a.id
+             AND d.version = (SELECT MAX(version) FROM drafts WHERE application_id = a.id)
+    """
+    params: tuple = ()
+    if search.strip():
+        query += " WHERE LOWER(COALESCE(a.company, '')) LIKE ? OR LOWER(COALESCE(a.title, '')) LIKE ?"
+        term = f"%{search.strip().lower()}%"
+        params = (term, term)
+    with connect() as conn:
+        rows = conn.execute(query, params).fetchall()
+    conn.close()
+    apps = []
+    for row in rows:
+        app = _row_to_dict(row)
+        app["latest_verify"] = json.loads(app["latest_verify"]) if app["latest_verify"] else None
+        app["last_activity"] = last_activity(app)
+        apps.append(app)
+    return sorted(apps, key=lambda a: a["last_activity"], reverse=True)
+
+
+def last_activity(app: dict) -> str:
+    stamps = [app.get("created_at"), app.get("latest_draft_at"), app.get("approved_at"), app.get("submitted_at")]
+    stamps += [n["date"] for n in app.get("notes") or []]
+    return max(s for s in stamps if s)

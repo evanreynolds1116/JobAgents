@@ -12,4 +12,5 @@ anthropic>=1.11
 httpx>=0.28
 trafilatura>=2.0
 
-# Later milestones add PDF export (docx2pdf or LibreOffice).
+# Milestone 5: PDF export (uses Microsoft Word; LibreOffice also works if installed)
+docx2pdf>=0.1.8

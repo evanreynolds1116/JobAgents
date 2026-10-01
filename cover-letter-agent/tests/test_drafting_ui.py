@@ -292,7 +292,8 @@ def test_flagged_letter_needs_review_tick_before_approval(calls):
     app = db.get_application(app_id)
     assert app["status"] == "approved" and app["sent_version"] == 1 and app["approved_at"]
     assert "Approved · version 1" in markdown_text(at)
-    assert "Export arrives in Milestone 5." in [c.value for c in at.caption]
+    assert "Exports version 1, the one you approved." in [c.value for c in at.caption]
+    assert not any(b.disabled for b in at.button if b.label.startswith("Export"))
 
 
 def test_clean_letter_can_be_approved_directly(calls):
