@@ -1,4 +1,4 @@
-"""Drafting pipeline: parse -> match -> draft (Milestone 3); humanize -> verify come in Milestone 4.
+"""Drafting pipeline: parse -> match -> draft -> humanize -> verify.
 
 Each step is one Claude API call that returns JSON matching a schema (structured
 outputs). Prompts live in agent/prompts/. Nothing here can take actions: the
@@ -12,14 +12,15 @@ from pathlib import Path
 
 import anthropic
 
+from agent import lint
+
 PROMPTS = Path(__file__).resolve().parent / "prompts"
-BANNED_PHRASES = Path(__file__).resolve().parent / "style" / "banned_phrases.txt"
 
 # Server-side fallback: if Claude declines a request, the API retries it on a
 # fallback model inside the same call (Claude API only).
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_TOKENS = 16_000
-EFFORT = {"parse": "low", "match": "low", "draft": "medium"}
+EFFORT = {"parse": "low", "match": "low", "draft": "medium", "humanize": "low", "verify": "medium"}
 
 
 class PipelineError(Exception):
@@ -145,11 +146,6 @@ def load_prompt(name: str) -> str:
     return (PROMPTS / f"{name}.md").read_text(encoding="utf-8")
 
 
-def banned_phrases() -> list[str]:
-    lines = BANNED_PHRASES.read_text(encoding="utf-8").splitlines()
-    return [line.strip() for line in lines if line.strip() and not line.startswith("#")]
-
-
 def _call_json(client, model: str, step: str, prompt: str, user: str, schema: dict) -> dict:
     """One structured call, retried once if the output doesn't parse or validate."""
     raw = ""
@@ -240,9 +236,10 @@ def match(client, model: str, parsed: dict, resume_text: str, notes: str) -> dic
 
 
 def _norm(text: str) -> str:
-    text = text.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
-    text = text.replace("–", "-").replace("—", "-")
-    return " ".join(text.lower().split())
+    """Letters and digits only, lowercased. Quotes are compared this way so that line
+    breaks, hyphenation and punctuation from PDF conversion ("sealed-\\nbid") don't make
+    a real quote look invented; invented words still won't be found."""
+    return re.sub(r"[\W_]+", "", text.lower())
 
 
 def check_evidence(result: dict, resume_text: str, notes: str) -> dict:
@@ -278,12 +275,17 @@ class DraftSettings:
     length: str
 
 
+def _samples(profile) -> str:
+    return "\n\n---\n\n".join(s[:6000] for s in profile.writing_samples) or "(none provided)"
+
+
 def draft(client, model: str, parsed: dict, matches: dict, resume_text: str, notes: str,
-          profile, settings: DraftSettings) -> str:
-    """Step 3: write the letter (Markdown text)."""
+          profile, settings: DraftSettings, previous: str | None = None,
+          feedback: str | None = None) -> str:
+    """Step 3: write the letter (Markdown text), or revise `previous` to follow `feedback`."""
     featured = [m for m in matches["matches"] if m["feature"]]
     others = [m for m in matches["matches"] if not m["feature"]]
-    samples = "\n\n---\n\n".join(s[:6000] for s in profile.writing_samples) or "(none provided)"
+    samples = _samples(profile)
     profile_block = {
         "name": profile.name or None,
         "sign_off": profile.sign_off or "Thanks for your time,",
@@ -299,13 +301,142 @@ def draft(client, model: str, parsed: dict, matches: dict, resume_text: str, not
         f"<profile>\n{json.dumps(profile_block, indent=2, ensure_ascii=False)}\n</profile>",
         f"<writing_samples>\n{samples}\n</writing_samples>",
         f"<settings>\nTone: {settings.tone}\nLength: {settings.length}\n</settings>",
-        "<avoid_phrases>\n" + "\n".join(banned_phrases()) + "\n</avoid_phrases>",
+        "<avoid_phrases>\n" + "\n".join(lint.load_phrases()) + "\n</avoid_phrases>",
     ])
+    if previous and feedback:
+        user += f"\n\n<previous_draft>\n{previous}\n</previous_draft>\n\n<feedback>\n{feedback}\n</feedback>"
     result = _call_json(client, model, "draft", load_prompt("draft"), user, DRAFT_SCHEMA)
     letter = result["letter"].strip()
     if not letter:
         raise PipelineError("The draft step returned an empty letter.", raw=json.dumps(result))
     return letter
+
+
+# --- Step 4: humanize ------------------------------------------------------------
+
+HUMANIZE_SCHEMA = {
+    "type": "object",
+    "properties": {"letter": {"type": "string"}, "changes": STR_LIST},
+    "required": ["letter", "changes"],
+    "additionalProperties": False,
+}
+
+
+def humanize(client, model: str, letter: str, profile, settings: DraftSettings) -> tuple[str, list[str]]:
+    """Step 4: reword linter hits and stiff sentences without adding facts."""
+    hits = lint.lint(letter)
+    flagged = "\n".join(f"- {h.text}: {h.message}" for h in hits) or "(nothing flagged by the linter)"
+    user = "\n\n".join([
+        f"<letter>\n{letter}\n</letter>",
+        f"<flagged>\n{flagged}\n</flagged>",
+        f"<writing_samples>\n{_samples(profile)}\n</writing_samples>",
+        f"<settings>\nTone: {settings.tone}\nLength: {settings.length}\n</settings>",
+    ])
+    result = _call_json(client, model, "humanize", load_prompt("humanize"), user, HUMANIZE_SCHEMA)
+    revised = result["letter"].strip()
+    return (revised or letter), result["changes"]
+
+
+# --- Step 5: verify --------------------------------------------------------------
+
+SOURCES = ["resume", "profile", "notes", "posting", "none"]
+VERIFY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "claims": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "claim": {"type": "string"},
+                    "supported": {"type": "boolean"},
+                    "source": {"type": "string", "enum": SOURCES},
+                    "evidence": {"type": "string"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["claim", "supported", "source", "evidence", "reason"],
+                "additionalProperties": False,
+            },
+        },
+        "style_flags": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"text": {"type": "string"}, "issue": {"type": "string"}},
+                "required": ["text", "issue"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["claims", "style_flags"],
+    "additionalProperties": False,
+}
+
+
+def profile_text(profile) -> str:
+    """The profile facts a letter may use, as plain text for checking claims."""
+    lines = [
+        f"Name: {profile.name}" if profile.name else "",
+        f"Email: {profile.email}" if profile.email else "",
+        f"Phone: {profile.country_code} {profile.phone}" if profile.phone else "",
+        f"City: {profile.city}" if profile.city else "",
+        f"LinkedIn: {profile.linkedin}" if profile.linkedin else "",
+        f"Portfolio: {profile.portfolio}" if profile.portfolio else "",
+        f"Always mention: {profile.always_mention}" if profile.always_mention else "",
+    ]
+    return "\n".join(line for line in lines if line) or "(empty)"
+
+
+def verify(client, model: str, letter: str, resume_text: str, profile, notes: str,
+           posting_text: str) -> dict:
+    """Step 5: list every claim with its source; flag unsupported claims and style issues."""
+    sources = {"resume": resume_text, "profile": profile_text(profile), "notes": notes or "",
+               "posting": posting_text}
+    user = "\n\n".join([
+        f"<letter>\n{letter}\n</letter>",
+        f"<resume>\n{resume_text}\n</resume>",
+        f"<profile>\n{sources['profile']}\n</profile>",
+        f"<notes>\n{notes.strip() or '(none)'}\n</notes>",
+        _posting_block(posting_text),
+    ])
+    result = _call_json(client, model, "verify", load_prompt("verify"), user, VERIFY_SCHEMA)
+    return check_claims(result, letter, sources)
+
+
+def check_claims(result: dict, letter: str, sources: dict[str, str]) -> dict:
+    """Code checks on the verifier: a 'supported' claim needs a quote that is really in
+    its source, and each flag is located in the letter for highlighting."""
+    normalized = {name: _norm(text) for name, text in sources.items()}
+    letter_norm = _norm(letter)
+    for c in result["claims"]:
+        if c["supported"]:
+            quote = _norm(c["evidence"])
+            if not quote or c["source"] not in normalized or quote not in normalized[c["source"]]:
+                c["supported"] = False
+                c["reason"] = (f"The supporting quote couldn't be found in your {c['source']}, "
+                               "so this needs your check.")
+        c["in_letter"] = _norm(c["claim"]) in letter_norm
+    for f in result["style_flags"]:
+        f["in_letter"] = _norm(f["text"]) in letter_norm
+    result["lint"] = [h.to_dict() for h in lint.lint(letter)]
+    return result
+
+
+def flags(verify_result: dict | None) -> dict:
+    """What needs your review before approving: unsupported claims, style flags, linter hits."""
+    if not verify_result:
+        return {"claims": [], "style": [], "lint": [], "unchecked": True}
+    return {
+        "claims": [c for c in verify_result["claims"] if not c["supported"]],
+        "style": verify_result.get("style_flags", []),
+        "lint": verify_result.get("lint", []),
+        "unchecked": False,
+    }
+
+
+def flag_count(verify_result: dict | None) -> int:
+    f = flags(verify_result)
+    return len(f["claims"]) + len(f["style"]) + len(f["lint"])
 
 
 def word_count(text: str) -> int:

@@ -24,10 +24,10 @@ h1 { font-size: 32px !important; font-weight: 700 !important; letter-spacing: -0
 .ja-file { font-family: 'IBM Plex Mono', monospace; font-size: 14px; }
 .st-key-pf_resume_text textarea { font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.6; }
 .st-key-nl_url input { font-family: 'IBM Plex Mono', monospace; font-size: 14px; }
-.st-key-card_letter p, .st-key-card_letter li {
-  font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.6;
-}
-.st-key-card_letter [data-testid="stCaptionContainer"] p { font-family: 'Public Sans', sans-serif; font-size: 14px; }
+.ja-letter p { font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.6; margin: 0 0 14px; }
+.ja-letter mark { padding: 1px 2px; border-radius: 3px; cursor: help; color: inherit; }
+mark.ja-flag-claim { background: #FBE9E7; border-bottom: 2px solid #A3261C; }
+mark.ja-flag-style { background: #FDF1E2; border-bottom: 2px solid #8A4B08; }
 .ja-strength { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
 .ja-strong { background: #E3F1EE; color: #0B4F47; }
 .ja-partial { background: #FDF1E2; color: #8A4B08; }

@@ -37,4 +37,9 @@ Style:
 - Length: follow `<settings>`. "250–400 words" means 250 to 400 words in 3 or 4 body paragraphs. "Short, under 250 words" means 150 to 250 words in 3 body paragraphs.
 - Tone: "Professional and warm" is friendly but businesslike; "More formal" is reserved and polished with fewer contractions; "More casual" is relaxed and conversational while still professional.
 
+Revisions:
+
+- If `<previous_draft>` and `<feedback>` are given, revise the previous draft to follow the feedback, and keep the parts the feedback doesn't ask to change.
+- The feedback comes from the candidate. Follow it, but the fact rules above still apply: if it asks for something the sources don't support, do what you can without inventing facts.
+
 Return only the letter, from the greeting to the candidate's name. Don't add the candidate's address, contact details or a date; those are added when the letter is exported.

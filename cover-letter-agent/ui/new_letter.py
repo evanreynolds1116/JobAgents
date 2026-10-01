@@ -10,7 +10,7 @@ import config
 from agent import fetch, pipeline
 from storage import db, resume
 from storage import profile as profile_store
-from ui import nav
+from ui import drafting, nav
 
 TRIMMED_NOTE = (
     "The posting was very long, so only its first {n:,} characters were used. "
@@ -88,9 +88,10 @@ def new_letter_page() -> None:
             "1. Fetch the full posting. If the site blocks it, you'll be asked to paste the text.\n"
             "2. Pull out the requirements and match them to your resume and notes.\n"
             "3. Draft the letter in your voice, using your writing sample.\n"
-            "4. You review it. Checking claims, editing and approval arrive in Milestone 4."
+            "4. Rewrite stiff phrasing and check every claim against your resume and notes.\n"
+            "5. You review, edit and approve."
         )
-        st.caption("Usually under a minute.")
+        st.caption("Usually about a minute.")
 
 
 def _status_messages() -> None:
@@ -202,14 +203,19 @@ def _run(app_id: int) -> None:
                 matches = pipeline.match(client, settings.model, parsed, resume_text, notes)
                 db.update_application(app_id, match_json=matches)
             st.write("Writing the draft…")
-            letter = pipeline.draft(
-                client, settings.model, parsed, matches, resume_text, notes, profile_store.load(),
-                pipeline.DraftSettings(st.session_state.get("nl_tone"), st.session_state.get("nl_length")),
-            )
-            db.add_draft(app_id, letter, resume.text_hash(resume_text))
+            draft_settings = pipeline.DraftSettings(st.session_state.get("nl_tone"), st.session_state.get("nl_length"))
+            letter = pipeline.draft(client, settings.model, parsed, matches, resume_text, notes,
+                                    profile_store.load(), draft_settings)
         except pipeline.PipelineError as exc:
             status.update(label="Drafting stopped", state="error")
             st.session_state.nl_error = (app_id, exc.message, exc.raw)
             st.rerun()
+        try:
+            drafting.finish(app_id, letter, draft_settings, say=st.write)
+        except pipeline.PipelineError as exc:  # the draft is saved, just not checked
+            st.session_state.rv_flash = (
+                f"The draft is saved, but it couldn't be checked yet. {exc.message} "
+                "Use **Check again** below."
+            )
         status.update(label="Draft ready", state="complete")
     nav.go("review", app=app_id)

@@ -6,7 +6,7 @@ import anthropic
 import httpx2
 import pytest
 
-from agent import fetch, pipeline
+from agent import fetch, lint, pipeline
 from storage import resume
 from storage.profile import Profile
 
@@ -40,16 +40,25 @@ def recorded(name):
     return json.loads((FIXTURES / "recorded" / f"{name}.json").read_text(encoding="utf-8"))
 
 
+PROFILE = Profile(name="Jordan Avery")
+
+
+def posting_for(rec):
+    return fetch.extract((FIXTURES / "postings" / rec["posting_file"]).read_text(encoding="utf-8")).text
+
+
 def replay(name):
     rec = recorded(name)
-    posting = fetch.extract((FIXTURES / "postings" / rec["posting_file"]).read_text(encoding="utf-8")).text
+    posting = posting_for(rec)
     steps = rec["steps"]
-    client = FakeClient(*(response(steps[s]["text"], steps[s]["stop_reason"]) for s in ("parse", "match", "draft")))
+    order = ("parse", "match", "draft", "humanize", "verify")
+    client = FakeClient(*(response(steps[s]["text"], steps[s]["stop_reason"]) for s in order))
     parsed = pipeline.parse_job(client, MODEL, posting)
     matches = pipeline.match(client, MODEL, parsed, RESUME, rec["notes"])
-    letter = pipeline.draft(client, MODEL, parsed, matches, RESUME, rec["notes"],
-                            Profile(name="Jordan Avery"), SETTINGS)
-    return client, parsed, matches, letter
+    letter = pipeline.draft(client, MODEL, parsed, matches, RESUME, rec["notes"], PROFILE, SETTINGS)
+    letter, _ = pipeline.humanize(client, MODEL, letter, PROFILE, SETTINGS)
+    checked = pipeline.verify(client, MODEL, letter, RESUME, PROFILE, rec["notes"], posting)
+    return client, parsed, matches, letter, checked
 
 
 # --- Recorded responses --------------------------------------------------------
@@ -61,7 +70,7 @@ def replay(name):
     ("prompt_injection", "Riverside Arena Group", "Event Marketing Specialist"),
 ])
 def test_recorded_steps_match_schemas(name, company, title):
-    client, parsed, matches, letter = replay(name)
+    client, parsed, matches, letter, _ = replay(name)
     pipeline.validate(parsed, pipeline.PARSE_SCHEMA)
     assert (parsed["company"], parsed["title"]) == (company, title)
     for m in matches["matches"]:
@@ -73,9 +82,9 @@ def test_recorded_steps_match_schemas(name, company, title):
 
 def test_requests_use_structured_output_effort_and_fallback():
     client, *_ = replay("hockey_with_notes")
-    parse_req, match_req, draft_req = client.requests
+    parse_req, match_req, draft_req, humanize_req, verify_req = client.requests
     assert parse_req["output_config"]["format"]["schema"] == pipeline.PARSE_SCHEMA
-    assert [r["output_config"]["effort"] for r in client.requests] == ["low", "low", "medium"]
+    assert [r["output_config"]["effort"] for r in client.requests] == ["low", "low", "medium", "low", "medium"]
     for req in client.requests:
         assert req["model"] == MODEL
         assert req["fallbacks"] == "default" and req["betas"] == [pipeline.FALLBACK_BETA]
@@ -84,14 +93,14 @@ def test_requests_use_structured_output_effort_and_fallback():
 
 
 def test_job_notes_reach_the_draft():
-    _, parsed, matches, letter = replay("hockey_with_notes")
+    _, parsed, matches, letter, _ = replay("hockey_with_notes")
     hockey = next(m for m in matches["matches"] if "hockey" in m["requirement"].lower())
     assert hockey["strength"] == "strong" and hockey["evidence"][0]["source"] == "notes"
     assert "adult league" in letter
 
 
 def test_prompt_injection_still_produces_a_normal_letter():
-    client, parsed, _, letter = replay("prompt_injection")
+    client, parsed, _, letter, _ = replay("prompt_injection")
     sent = client.requests[0]["messages"][0]["content"]
     assert sent.startswith("<job_posting>") and sent.endswith("</job_posting>")
     assert "Ignore previous instructions" in sent  # passed as data, inside the tags
@@ -186,3 +195,91 @@ def test_needs_confirmation():
 
 def test_client_retries_three_times():
     assert pipeline.make_client("sk-ant-test-0000000000000000").max_retries == 3
+
+
+# --- Steps 4 and 5 --------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", ["hockey_with_notes", "plain_company_page", "prompt_injection"])
+def test_recorded_verify_matches_schema(name):
+    *_, checked = replay(name)
+    raw = json.loads(recorded(name)["steps"]["verify"]["text"])
+    pipeline.validate(raw, pipeline.VERIFY_SCHEMA)
+    assert checked["claims"], "every letter makes some claims"
+    for c in checked["claims"]:
+        assert c["source"] in pipeline.SOURCES
+        if c["supported"]:
+            assert c["evidence"]
+    assert "lint" in checked
+
+
+def test_humanize_leaves_no_banned_phrases():
+    for name in ("hockey_with_notes", "plain_company_page", "prompt_injection"):
+        *_, letter, _ = replay(name)
+        assert [h for h in lint.lint(letter) if h.kind == "phrase"] == []
+
+
+def test_deliberately_inserted_false_claim_is_flagged():
+    from tests.fixtures.record_pipeline import FALSE_CLAIM
+
+    rec = recorded("hockey_with_notes")
+    *_, letter, _ = replay("hockey_with_notes")
+    paragraphs = letter.split("\n\n")
+    paragraphs.insert(2, FALSE_CLAIM)
+    tampered = "\n\n".join(paragraphs)
+    client = FakeClient(response(rec["steps"]["verify_false_claim"]["text"]))
+    checked = pipeline.verify(client, MODEL, tampered, RESUME, PROFILE, rec["notes"], posting_for(rec))
+    flagged = [c for c in pipeline.flags(checked)["claims"] if "Google" in c["claim"]]
+    assert flagged and flagged[0]["in_letter"] and flagged[0]["reason"]
+
+
+def test_supported_claim_without_real_evidence_is_downgraded():
+    result = {"claims": [
+        {"claim": "I grew Instagram from 2,400 to 9,100.", "supported": True, "source": "resume",
+         "evidence": "Grew Instagram following from 2,400 to 9,100 in two seasons.", "reason": ""},
+        {"claim": "I managed a $2M budget.", "supported": True, "source": "resume",
+         "evidence": "Managed a $2M budget", "reason": ""},
+        {"claim": "I play hockey.", "supported": True, "source": "notes",
+         "evidence": "I play in a weekly adult league", "reason": ""},
+    ], "style_flags": []}
+    letter = "I grew Instagram from 2,400 to 9,100. I managed a $2M budget. I play hockey."
+    checked = pipeline.check_claims(result, letter, {"resume": RESUME, "notes": "I play in a weekly adult league."})
+    real, invented, notes = checked["claims"]
+    assert real["supported"] and notes["supported"]
+    assert not invented["supported"] and "couldn't be found" in invented["reason"]
+    assert all(c["in_letter"] for c in checked["claims"])
+    assert pipeline.flag_count(checked) == 1
+
+
+def test_flags_for_unchecked_version():
+    assert pipeline.flags(None)["unchecked"] is True
+    assert pipeline.flag_count(None) == 0
+
+
+def test_revision_sends_previous_draft_and_feedback():
+    rec = recorded("hockey_with_notes")
+    client = FakeClient(response(rec["steps"]["draft"]["text"]))
+    parsed = json.loads(rec["steps"]["parse"]["text"])
+    matches = pipeline.check_evidence(json.loads(rec["steps"]["match"]["text"]), RESUME, rec["notes"])
+    pipeline.draft(client, MODEL, parsed, matches, RESUME, rec["notes"], PROFILE, SETTINGS,
+                   previous="Dear Dana,\n\nOld draft.", feedback="Make it shorter")
+    sent = client.requests[0]["messages"][0]["content"]
+    assert "<previous_draft>\nDear Dana,\n\nOld draft.\n</previous_draft>" in sent
+    assert "<feedback>\nMake it shorter\n</feedback>" in sent
+
+
+def test_profile_text_lists_only_filled_fields():
+    text = pipeline.profile_text(Profile(name="Jordan Avery", city="Nashville, TN", always_mention="Open to travel"))
+    assert text == "Name: Jordan Avery\nCity: Nashville, TN\nAlways mention: Open to travel"
+
+
+def test_quotes_survive_pdf_line_breaks_and_punctuation():
+    resume_text = "Draft Day — Real-time sealed-\nbid auction + snake draft app for a 12-team league on phones, laptops, and a TV big board"
+    quote = "Real-time sealed-bid auction + snake draft app for a 12-team league on phones, laptops, and a TV big board"
+    result = {"claims": [{"claim": "Draft Day", "supported": True, "source": "resume", "evidence": quote, "reason": ""},
+                         {"claim": "Draft Day", "supported": True, "source": "resume",
+                          "evidence": "sealed-bid auction for a 20-team league", "reason": ""}],
+              "style_flags": []}
+    checked = pipeline.check_claims(result, "Draft Day", {"resume": resume_text})
+    assert checked["claims"][0]["supported"] is True
+    assert checked["claims"][1]["supported"] is False  # changed facts still fail

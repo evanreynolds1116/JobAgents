@@ -168,3 +168,17 @@ def test_upload_error_is_shown(at):
     assert not at.exception, at.exception
     assert "couldn't be opened" in at.error[0].value
     assert not resume.has_resume()
+
+
+def test_banned_phrase_list_can_be_edited(at, monkeypatch, tmp_path):
+    from agent import lint
+
+    path = tmp_path / "banned.txt"
+    lint.save_phrases(["thrilled", "leverage"], path)
+    monkeypatch.setattr(lint, "BANNED_PHRASES", path)
+    at = open_profile()
+    assert any(m.value == "Banned phrases: 2" for m in at.markdown)
+    at.text_area(key="pf_phrases").input("thrilled\nleverage\nsynergy")
+    click(at, "Save list")
+    assert lint.load_phrases(path) == ["thrilled", "leverage", "synergy"]
+    assert any(m.value == "Banned phrases: 3" for m in at.markdown)

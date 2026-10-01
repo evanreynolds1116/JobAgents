@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 4. Verify, review and approve
-- **Next step:** Build Milestone 4
+- **Current milestone:** 5. Export, history and evaluation
+- **Next step:** Try the review screen on a real letter; then build Milestone 5
 - **Last updated:** 2026-10-01
 
 ## Build order
@@ -28,7 +28,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 1 | Skeleton and setup | 1. Cover letter | Done |
 | 2 | Resume and profile | 1. Cover letter | Done |
 | 3 | Fetch and draft | 1. Cover letter | Done |
-| 4 | Verify, review and approve | 1. Cover letter | Not started |
+| 4 | Verify, review and approve | 1. Cover letter | Done |
 | 5 | Export, history and evaluation | 1. Cover letter | Not started |
 | 10 | Saved searches and Adzuna | 3. Job search | Not started |
 | 11 | Filtering and fit scoring | 3. Job search | Not started |
@@ -57,10 +57,10 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] 8 of the 10 test postings produce a draft with the correct company and title (8 of 8 real postings correct; the 2 LinkedIn postings need pasted text)
 
 **Milestone 4. Verify, review and approve**
-- [ ] Humanize step and phrase linter run on every draft
-- [ ] A deliberately inserted false claim gets flagged
-- [ ] Export is unavailable until the letter is approved
-- [ ] Editing after approval resets the status to `draft`
+- [x] Humanize step and phrase linter run on every draft
+- [x] A deliberately inserted false claim gets flagged (live verifier run on a letter with an invented Google job, replayed in `test_deliberately_inserted_false_claim_is_flagged`)
+- [x] Export is unavailable until the letter is approved (buttons disabled, `require_approved` refuses drafts)
+- [x] Editing after approval resets the status to `draft`
 
 **Milestone 5. Export, history and evaluation**
 - [ ] .docx and PDF export of approved letters
@@ -138,6 +138,15 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-01 | Milestone 3 includes a basic review screen (posting summary, match, draft, versions, copy). Approve, editing, claim checks and revise-with-feedback are Milestone 4 | Somewhere to see the draft after Generate | n/a |
 | 2026-10-01 | Pipeline tests replay real Claude responses recorded for made-up postings (`tests/fixtures/recorded/`, re-recorded with `tests/fixtures/record_pipeline.py`) | Spec: tests use recorded API responses so they cost nothing | n/a |
 | 2026-10-01 | The 10 real acceptance postings go in `tests/fixtures/real/`, which is gitignored; made-up fixtures stay in git | The repo is public and real postings are other companies' text | Yes |
+| 2026-10-01 | Linter lives in `agent/lint.py`: the banned-phrase list (case-insensitive, also catching forms like "leveraged"), more than one em dash, and "I am writing to express my interest"-style openers | Spec's phrase linter and style rules | n/a |
+| 2026-10-01 | Verify step may also cite the `posting` as a source, for claims about the company or role | The spec's sources (resume, profile, notes) cover the candidate; company facts should still trace to something | n/a |
+| 2026-10-01 | Code double-checks the verifier: a claim marked supported whose quote isn't in that source is flagged instead. Quotes (here and in matching) are compared on letters and digits only | Catches invented support; the letters-and-digits comparison stops PDF line breaks ("sealed-" / "bid") causing false flags | n/a |
+| 2026-10-01 | Approve stays locked while anything is flagged (unsupported claims, style flags, leftover linter hits, or an unchecked version) until you tick "I've reviewed the flagged items" | Spec requires this for unsupported claims; the mockup's review panel covers style items too | n/a |
+| 2026-10-01 | Your own edits are checked (verify) but not reworded (no humanize). "Ask for changes" reruns steps 3 to 5. "It's true: add to notes" adds the claim to the job notes and re-checks; "Remove sentence" saves a new version without it; "Rewrite this sentence" is "Ask for changes" with the flag as feedback | Spec's review screen and the mockup's actions | n/a |
+| 2026-10-01 | Approving records `approved_at` and `sent_version` (the version you approved). Any new version (edit, redraft, restore) returns the letter to draft and clears both | Spec: approval gate, and "the exact cover letter version you sent" | n/a |
+| 2026-10-01 | Export buttons are shown but disabled; they stay disabled after approval until Milestone 5 builds the exporter | Milestone 4 acceptance covers the gate only | n/a |
+| 2026-10-01 | The banned-phrase list can be edited from Profile & resume ("Edit list"). It's saved to `agent/style/banned_phrases.txt`, which is tracked in git | Mockup shows "Banned phrases: 10 · Edit list" | n/a |
+| 2026-10-01 | Effort: humanize `low`, verify `medium`. All five steps took 85 seconds on a real posting (verify 30 s) | Verify is the safety check, so it gets more effort; user chose to keep verify at `medium` over saving ~15 seconds | Yes |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
@@ -153,10 +162,18 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Milestone 3 acceptance: 10 real links received 2026-10-01; 8 of 8 readable postings correct (see session log)
 - [ ] Optional: paste the text of the 2 LinkedIn postings (09, 10) to complete the 10-posting set; Milestone 5's evaluation reuses it
 - [x] Draft speed: match effort lowered to `low` (2026-10-01); slowest real posting went from 66 to 45 seconds
+- [x] Draft speed with all five steps: 85 seconds on a real posting. Verify kept at `medium` (2026-10-01); about 85 seconds per letter is accepted, against the spec's "under a minute" goal
 - [x] Real postings go in a gitignored `tests/fixtures/real/` (approved 2026-10-01)
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-01 (Milestone 4)
+- Worked on: Milestone 4, verify, review and approve
+- Completed: Phrase linter (`agent/lint.py`). Pipeline steps 4 (humanize) and 5 (verify) with new prompts, plus revision support in step 3. Every draft now runs all five steps; if humanize or verify fails, the draft is still saved unchecked and the review screen offers "Check again". Review screen rebuilt per the mockup: status chip, Approve (locked until flags are reviewed), letter with unsupported claims (red) and style issues (amber) highlighted with hover reasons, inline editing, "Needs your review" panel with Remove sentence / It's true: add to notes / Rewrite this sentence, Ask for changes, How you match, Versions (view and restore), editable job notes, posting summary, and disabled export buttons. Storage: approve, return to draft on any new version, export gate. Profile: banned-phrase list editor.
+- Live checks (made-up data, recorded for tests): the verifier flagged an inserted false claim ("led a team of 12 engineers at Google") and also caught smaller embellishments. On real posting 04 with the user's resume: 85 seconds for all five steps, 18 claims checked; one false flag traced to a PDF line break in the resume and fixed.
+- Tests: 163 passed. New: `test_lint.py` (every banned phrase in any case), steps 4 and 5 in `test_pipeline.py` (including the false-claim acceptance test), approval and export gate in `test_db.py`, review-screen flows in `test_drafting_ui.py`, phrase editor in `test_profile.py`.
+- Next: decide verify effort; user tries the review screen; Milestone 5
 
 ### 2026-10-01 (Milestone 3 acceptance)
 - Ran the user's 10 posting links through the app's fetcher. Read automatically: 02 OnePay, 03 Tilt, 05 Realm, 06 Cohere, 08 Tessera Labs (Ashby/Rippling, via embedded JobPosting data) and 04 Axios (Greenhouse, after raising the timeout). Fell back to paste as designed: 01 Regal (UltiPro, JavaScript page), 07 Versant (SmartRecruiters, JavaScript page), 09 and 10 (LinkedIn, not requested). Stand-ins for the pasted text of 01 and 07 came from the saved page data and SmartRecruiters' public postings API.

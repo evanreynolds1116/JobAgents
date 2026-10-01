@@ -3,6 +3,7 @@
 import streamlit as st
 
 import config
+from agent import lint
 from storage import profile as profile_store
 from storage import resume
 from ui.style import muted
@@ -66,6 +67,11 @@ def _import_resume() -> None:
             "fix it if needed, then click **Save changes**.",
         )
     st.session_state.pf_upload_n = st.session_state.get("pf_upload_n", 0) + 1  # clears the uploader
+
+
+def _save_phrases() -> None:
+    lint.save_phrases(st.session_state.get("pf_phrases", "").splitlines())
+    st.session_state.pf_flash = ("success", "Banned-phrase list saved.")
 
 
 def _add_sample() -> None:
@@ -151,6 +157,14 @@ def profile_page() -> None:
             st.button("Add another sample", on_click=_add_sample)
             if count > 1:
                 st.caption("To remove a sample, clear its text and save.")
+            phrases = lint.load_phrases()
+            count_col, edit_col = st.columns([2, 1], vertical_alignment="center")
+            count_col.markdown(f"Banned phrases: {len(phrases)}")
+            with edit_col.popover("Edit list", width="stretch"):
+                st.caption("One per line, any capitalization. Drafts avoid these, and any left over are flagged.")
+                st.text_area("Banned phrases", value="\n".join(phrases), key="pf_phrases", height=260,
+                             label_visibility="collapsed")
+                st.button("Save list", on_click=_save_phrases)
 
     with right:
         with st.container(border=True, key="card_about"):

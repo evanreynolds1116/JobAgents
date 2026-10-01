@@ -175,3 +175,49 @@ def list_drafts(app_id: int) -> list[dict]:
     for d in drafts:
         d["verify_json"] = json.loads(d["verify_json"]) if d["verify_json"] else None
     return drafts
+
+
+def latest_draft(app_id: int) -> dict | None:
+    drafts = list_drafts(app_id)
+    return drafts[0] if drafts else None
+
+
+def set_verify(app_id: int, version: int, verify: dict) -> None:
+    """Store the check results for a version that was saved before it could be checked."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE drafts SET verify_json = ? WHERE application_id = ? AND version = ?",
+            (json.dumps(verify), app_id, version),
+        )
+    conn.close()
+
+
+# --- Approval ----------------------------------------------------------------
+
+
+def _now() -> str:
+    from datetime import datetime
+
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def approve(app_id: int, version: int) -> None:
+    """Only the Approve button calls this (spec: Human approval & guardrails)."""
+    update_application(app_id, status="approved", approved_at=_now(), sent_version=version)
+
+
+def return_to_draft(app_id: int) -> bool:
+    """Any change to an approved letter makes it a draft again. Returns True if it was approved."""
+    app = get_application(app_id)
+    if app and app["status"] == "approved":
+        update_application(app_id, status="draft", approved_at=None, sent_version=None)
+        return True
+    return False
+
+
+def save_version(app_id: int, text: str, resume_hash: str, feedback: str | None = None,
+                 verify: dict | None = None) -> int:
+    """Save a new letter version; an approved letter goes back to draft."""
+    version = add_draft(app_id, text, resume_hash, feedback=feedback, verify=verify)
+    return_to_draft(app_id)
+    return version

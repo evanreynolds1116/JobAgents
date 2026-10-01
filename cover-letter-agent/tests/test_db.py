@@ -94,3 +94,45 @@ def test_draft_versions_count_up(conn):
     drafts = db.list_drafts(app_id)
     assert [d["version"] for d in drafts] == [2, 1]
     assert drafts[0]["feedback"] == "Shorter" and drafts[1]["verify_json"] is None
+
+
+# --- Approval ------------------------------------------------------------------
+
+
+def test_approve_then_edit_returns_to_draft(conn):
+    app_id = db.create_application(None, "Posting", "")
+    db.add_draft(app_id, "v1", "h")
+    db.approve(app_id, 1)
+    app = db.get_application(app_id)
+    assert app["status"] == "approved" and app["sent_version"] == 1 and app["approved_at"]
+
+    assert db.save_version(app_id, "v2 edited", "h", feedback="Edited by hand") == 2
+    app = db.get_application(app_id)
+    assert app["status"] == "draft" and app["approved_at"] is None and app["sent_version"] is None
+
+
+def test_new_version_of_a_draft_stays_draft(conn):
+    app_id = db.create_application(None, "Posting", "")
+    db.save_version(app_id, "v1", "h")
+    assert not db.return_to_draft(app_id)
+    assert db.get_application(app_id)["status"] == "draft"
+
+
+def test_set_verify_on_existing_version(conn):
+    app_id = db.create_application(None, "Posting", "")
+    db.add_draft(app_id, "v1", "h")
+    db.set_verify(app_id, 1, {"claims": [], "style_flags": [], "lint": []})
+    assert db.latest_draft(app_id)["verify_json"] == {"claims": [], "style_flags": [], "lint": []}
+
+
+def test_export_refused_for_drafts(conn):
+    from export.docx import NotApproved, can_export, require_approved
+
+    app_id = db.create_application(None, "Posting", "")
+    db.add_draft(app_id, "v1", "h")
+    with pytest.raises(NotApproved):
+        require_approved(db.get_application(app_id))
+    db.approve(app_id, 1)
+    assert can_export(db.get_application(app_id))
+    db.save_version(app_id, "v2", "h")
+    assert not can_export(db.get_application(app_id))
