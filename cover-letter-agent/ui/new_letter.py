@@ -88,7 +88,8 @@ def new_letter_page() -> None:
             "1. Fetch the full posting. If the site blocks it, you'll be asked to paste the text.\n"
             "2. Pull out the requirements and match them to your resume and notes.\n"
             "3. Draft the letter in your voice, using your writing sample.\n"
-            "4. Rewrite stiff phrasing and check every claim against your resume and notes.\n"
+            "4. Rewrite stiff phrasing, check every claim against your resume and notes, "
+            "and fix any that don't hold up.\n"
             "5. You review, edit and approve."
         )
         st.caption("Usually one to two minutes.")
