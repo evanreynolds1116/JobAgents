@@ -24,6 +24,8 @@ It opens at http://localhost:8501. Without a valid key the app shows setup instr
 
 ## Test
 
+Resume PDFs in `tests/fixtures/` are made up; `make_resume_fixtures.py` there regenerates them.
+
 ```
 .venv\Scripts\python -m pytest
 ```

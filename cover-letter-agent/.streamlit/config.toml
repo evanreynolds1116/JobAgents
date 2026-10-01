@@ -11,6 +11,8 @@ address = "localhost"
 headless = true
 # Serves static/ (bundled fonts) at app/static/, so nothing loads from Google.
 enableStaticServing = true
+# Resumes only; in megabytes.
+maxUploadSize = 10
 
 [client]
 toolbarMode = "minimal"
@@ -25,6 +27,7 @@ borderColor = "#D9DFE5"
 linkColor = "#0F6E63"
 baseRadius = "8px"
 showSidebarBorder = false
+showWidgetBorder = true
 font = "Public Sans, sans-serif"
 codeFont = "IBM Plex Mono, monospace"
 

@@ -16,7 +16,7 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 ## Current status
 
 - **Current milestone:** 2. Resume and profile
-- **Next step:** User checks Milestone 1 (add a real key to `cover-letter-agent/.env`, run the app) and answers the open questions below; then build Milestone 2
+- **Next step:** User uploads their real resume on Profile & resume and confirms no sections are missing (last open criterion for Milestone 2); then build Milestone 3
 - **Last updated:** 2026-10-01
 
 ## Build order
@@ -26,7 +26,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | # | Milestone | Phase | Status |
 |---|---|---|---|
 | 1 | Skeleton and setup | 1. Cover letter | Done |
-| 2 | Resume and profile | 1. Cover letter | Not started |
+| 2 | Resume and profile | 1. Cover letter | In progress (awaiting your real-resume check) |
 | 3 | Fetch and draft | 1. Cover letter | Not started |
 | 4 | Verify, review and approve | 1. Cover letter | Not started |
 | 5 | Export, history and evaluation | 1. Cover letter | Not started |
@@ -49,7 +49,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 
 **Milestone 2. Resume and profile**
 - [ ] Uploading the user's real resume (PDF or .docx) converts to `resume.md` with no missing sections
-- [ ] Resume edits and profile fields (including writing sample) persist after a restart
+- [x] Resume edits and profile fields (including writing sample) persist after a restart
 
 **Milestone 3. Fetch and draft**
 - [ ] URL input with the optional "Notes for this job" box
@@ -118,6 +118,14 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-01 | Streamlit usage statistics turned off (`gatherUsageStats = false`) and the server bound to `localhost` | Spec: no analytics or third-party services; local-only app | n/a (per spec) |
 | 2026-10-01 | `requirements.txt` lists only what Milestone 1 uses; later milestones add their own libraries | Smaller install until they're needed | n/a |
 | 2026-10-01 | Job notes log (`applications.notes`) stored as a JSON list of `{date, text}` entries | Spec says "dated entries" without a format | n/a |
+| 2026-10-01 | Resume conversion uses `pdfplumber` (PDF) and `python-docx` (.docx), both MIT-licensed | Spec doesn't name libraries; `python-docx` is already planned for export | n/a |
+| 2026-10-01 | Added `storage/resume.py` (convert, store, hash) and `storage/profile.py` (`profile.yaml`), which aren't in the spec's layout | Keeps file storage next to `storage/db.py`; same reasoning as `config.py` | Yes |
+| 2026-10-01 | Writing sample built in Milestone 2, not 4, and supports several samples ("Add another sample") | PROGRESS.md lists it under Milestone 2; spec's profile allows "one or more samples" | n/a |
+| 2026-10-01 | Uploading converts right away and saves both the original and `resume.md`. Replacing a resume warns first that it overwrites edited text | Fewer steps; the original is never lost | n/a |
+| 2026-10-01 | Profile also holds a default length (250–400 words or under 250) next to tone | Spec's profile lists "target length"; options match the New cover letter mockup | n/a |
+| 2026-10-01 | `app.py` only calls `main()` when Streamlit runs it, so tests can import it and render one page | Streamlit's test tool can only switch between file-based pages | n/a |
+| 2026-10-01 | Each screen will move to its own file under `ui/`; `app.py` keeps start-up checks and navigation | `app.py` would grow too large by Milestone 4 | Yes |
+| 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
 
@@ -126,9 +134,17 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [ ] User to create API keys: Anthropic (needed from milestone 1), Adzuna (needed from milestone 10)
 - [x] Fonts: bundle locally (approved 2026-10-01)
 - [x] Approve or change the "Pending" rows in Decisions & deviations (all approved 2026-10-01)
-- [x] Git repository initialized at the workspace root (2026-10-01); nothing committed yet
+- [x] Git repository initialized at the workspace root (2026-10-01); first commit pushed to github.com/evanreynolds1116/JobAgents (`main`)
+- [ ] Upload your real resume and confirm nothing is missing (Milestone 2 acceptance)
+- [x] Split `app.py` into one file per screen under `ui/`: approved 2026-10-01, to do at the start of Milestone 3
 
 ## Session log
+
+### 2026-10-01 (Milestone 2)
+- Worked on: Milestone 2, resume and profile
+- Completed: Resume upload (PDF or .docx) on Profile & resume, converted to `data/resume.md` with headings and bullets; original kept as `data/resume_original.*`. Converter handles two-column PDFs (header kept whole, then each column top to bottom), plus .docx page headers, tables, text boxes and hyperlinks; scanned or damaged files show a clear message. Editable converted text, profile form (name, email, phone, city, link, tone, length, sign-off, always/never mention), one or more writing samples, Save changes with an unsaved-changes notice and light email/link warnings. Profile saved to `data/profile.yaml` in readable YAML. `resume.text_hash()` ready for drafts. Mockup styling: white cards, bordered 44 px inputs.
+- Tests: 43 passed (`pytest`). New: `tests/test_resume.py` (made-up one- and two-column PDF fixtures, a generated .docx, error cases, storage) and `tests/test_profile.py` (YAML round trip, hand-edited files, and the screen: save, reload in a fresh session, add a sample, upload and upload errors). Also checked in the browser: typed a name, saved, restarted the server and the name and resume text were still there. Test data and the dummy key were removed afterwards.
+- Next: user checks their real resume; then Milestone 3 (fetch and draft)
 
 ### 2026-10-01
 - Worked on: Milestone 1, skeleton and setup
