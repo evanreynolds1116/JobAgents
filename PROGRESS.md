@@ -16,7 +16,7 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 ## Current status
 
 - **Current milestone:** 5. Export, history and evaluation
-- **Next step:** Add API credits and paste LinkedIn postings 09 and 10, then re-run `scripts/eval.py` (now with the automatic fix-up) and score it
+- **Next step:** User scores `output/eval/2026-10-01_133720/scores.csv` and pastes LinkedIn postings 09 and 10 for the final two runs
 - **Last updated:** 2026-10-01
 
 ## Build order
@@ -67,7 +67,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Applications list with status, searchable by company or title
 - [x] Application detail page shows the saved job description (even after the original posting is gone), the letter version sent, key dates and a notes log
 - [x] All tests pass (187 passed, 1 skipped: the real Word conversion, run on demand with `JOBAGENTS_PDF_TEST=1`)
-- [ ] Quality evaluation (`scripts/eval.py`) meets the success criteria in the spec's Overview & goals (first run: 6 of 8 completed before credits ran out; see session log)
+- [ ] Quality evaluation (`scripts/eval.py`) meets the success criteria in the spec's Overview & goals (second run, 8 of 10 postings: every automatic check passes; waiting on postings 09–10 and your scores)
 
 ### Phase 3: Job search agent
 
@@ -169,15 +169,20 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Milestone 3 acceptance: 10 real links received 2026-10-01; 8 of 8 readable postings correct (see session log)
 - [ ] Optional: paste the text of the 2 LinkedIn postings (09, 10) to complete the 10-posting set; Milestone 5's evaluation reuses it
 - [x] Draft speed: match effort lowered to `low` (2026-10-01); slowest real posting went from 66 to 45 seconds
-- [ ] Anthropic API credits ran out during the first evaluation run (postings 07 and 08 failed). Add credits at console.anthropic.com under Settings → Billing
+- [x] API credits added (2026-10-01)
 - [ ] Paste the text of LinkedIn postings 09 and 10 to complete the 10-posting set
 - [x] Unsupported claims: 5 of 6 evaluated letters had 1–2 flagged embellishments. User chose option (a), an automatic fix-up pass (built 2026-10-01; not yet run against the live API because credits ran out)
-- [ ] Score the evaluation's judgment calls in `scores.csv` once the full run is done
+- [ ] Score the judgment calls in `output/eval/2026-10-01_133720/scores.csv` (sounds like you, specific to the company, would send after light edits), and say which postings are weak matches for your resume
 - [x] Draft speed with all five steps: 85 seconds on a real posting. Verify kept at `medium` (2026-10-01); about 85 seconds per letter is accepted, against the spec's "under a minute" goal
 - [x] Real postings go in a gitignored `tests/fixtures/real/` (approved 2026-10-01)
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-01 (Milestone 5, second evaluation)
+- Re-ran `scripts/eval.py` on postings 01–08 with the automatic fix-up (`output/eval/2026-10-01_133720/`). Results: 8 of 8 correct company and title; 8 of 8 with zero unsupported claims (2 of 8 before the fix-up, so the fix-up resolved 6 letters with 1–2 claims each); 8 of 8 with no banned phrases; 8 of 8 within 250–400 words (363–398); 1–4 style flags per letter left for review; 72–130 seconds per letter (average 105).
+- Fix-up changes were narrow and accurate, e.g. "Python, SQL and TypeScript" → "Python and SQL, with TypeScript in my personal projects"; "grow my AWS skills" → "pick up AWS"; removed an unstated "Before any code was generated".
+- Still needed for Milestone 5: postings 09 and 10 (LinkedIn text), and the user's scores for the judgment calls.
 
 ### 2026-10-01 (Milestone 5, fix-up pass)
 - Built the automatic fix-up pass (option a) in the pipeline, the shared drafting flow (new letters and redrafts) and `scripts/eval.py`, whose report now shows unsupported-claim counts before and after the fix-up. New cover letter screen text updated ("Usually one to two minutes").
