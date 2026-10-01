@@ -96,9 +96,9 @@ def at(app_paths):
 
 
 def _profile_script():
-    import app
+    from ui import profile
 
-    app.profile_page()
+    profile.profile_page()
 
 
 def open_profile():

@@ -56,3 +56,40 @@ def test_draft_versions_unique_per_application(conn):
     conn.execute("INSERT INTO drafts (application_id, version, text) VALUES (?, 1, 'v1')", (app_id,))
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("INSERT INTO drafts (application_id, version, text) VALUES (?, 1, 'dup')", (app_id,))
+
+
+# --- Queries -----------------------------------------------------------------
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ("Boards.Greenhouse.io/acme/jobs/123/?gh_src=abc&utm_source=x#apply", "https://boards.greenhouse.io/acme/jobs/123"),
+    ("https://jobs.example.com/view?id=42&utm_campaign=z", "https://jobs.example.com/view?id=42"),
+    ("  ", None),
+    (None, None),
+])
+def test_normalize_url(raw, expected):
+    assert db.normalize_url(raw) == expected
+
+
+def test_application_round_trip(conn):
+    app_id = db.create_application("https://acme.example/jobs/1/", "Posting text", "My notes")
+    db.update_application(app_id, parsed_json={"company": "Acme", "must_have": ["SQL"]},
+                          company="Acme", title="Analyst")
+    app = db.get_application(app_id)
+    assert app["url"] == "https://acme.example/jobs/1"
+    assert app["parsed_json"] == {"company": "Acme", "must_have": ["SQL"]}
+    assert app["match_json"] is None and app["notes"] == []
+    assert db.find_by_url("acme.example/jobs/1#top")["id"] == app_id
+    assert db.find_by_url("https://acme.example/jobs/2") is None
+    db.update_application(app_id, match_json=None)
+    with pytest.raises(ValueError):
+        db.update_application(app_id, id=5)
+
+
+def test_draft_versions_count_up(conn):
+    app_id = db.create_application(None, "Posting", "")
+    assert db.add_draft(app_id, "First", "h1") == 1
+    assert db.add_draft(app_id, "Second", "h1", feedback="Shorter") == 2
+    drafts = db.list_drafts(app_id)
+    assert [d["version"] for d in drafts] == [2, 1]
+    assert drafts[0]["feedback"] == "Shorter" and drafts[1]["verify_json"] is None

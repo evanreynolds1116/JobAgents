@@ -8,7 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git not installed")
-@pytest.mark.parametrize("path", [".env", "data/app.db", "data/resume.md", "output/letter.docx"])
+@pytest.mark.parametrize("path", [".env", "data/app.db", "data/resume.md", "output/letter.docx",
+                                  "tests/fixtures/real/posting.html"])
 def test_private_paths_are_gitignored(tmp_path, path):
     shutil.copy(ROOT / ".gitignore", tmp_path / ".gitignore")
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)

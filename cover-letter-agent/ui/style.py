@@ -1,0 +1,64 @@
+"""Shared styling and small layout pieces.
+
+Design tokens come from ui-mockup/README.md. Streamlit's theme (.streamlit/config.toml)
+covers colors and fonts; this CSS covers the sizes and details the theme can't set.
+"""
+
+import streamlit as st
+
+CSS = """
+<style>
+h1 { font-size: 32px !important; font-weight: 700 !important; letter-spacing: -0.01em; }
+.stButton button, .stFormSubmitButton button, .stDownloadButton button { min-height: 44px; }
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] { min-height: 44px; }
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] p { font-size: 15px; }
+[class*="st-key-card_"] { background: #FFFFFF; border-radius: 12px; padding: 24px; }
+[data-testid="stTextInputRootElement"], [data-testid="stTextAreaRootElement"],
+[data-testid="stSelectbox"] div:has(> input) { border-color: #C5CDD5; }
+[data-testid="stTextInputRootElement"] { min-height: 44px; }
+.ja-brand { color: #FFFFFF; font-weight: 700; font-size: 18px; margin: 0; }
+.ja-tagline { color: #A9B6C2; font-size: 13px; margin: 0 0 12px; }
+.ja-footnote { color: #A9B6C2; font-size: 13px; line-height: 1.5; margin-top: 24px; }
+.ja-muted { color: #4F5B66; }
+.ja-crumb { color: #4F5B66; font-size: 14px; margin: 0; }
+.ja-file { font-family: 'IBM Plex Mono', monospace; font-size: 14px; }
+.st-key-pf_resume_text textarea { font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.6; }
+.st-key-nl_url input { font-family: 'IBM Plex Mono', monospace; font-size: 14px; }
+.st-key-card_letter p, .st-key-card_letter li {
+  font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.6;
+}
+.st-key-card_letter [data-testid="stCaptionContainer"] p { font-family: 'Public Sans', sans-serif; font-size: 14px; }
+.ja-strength { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.ja-strong { background: #E3F1EE; color: #0B4F47; }
+.ja-partial { background: #FDF1E2; color: #8A4B08; }
+.ja-none { background: #FBE9E7; color: #A3261C; }
+</style>
+"""
+
+
+def inject() -> None:
+    st.html(CSS)
+
+
+def brand() -> None:
+    st.markdown(
+        '<p class="ja-brand">Job Assistant</p><p class="ja-tagline">Runs on your computer</p>',
+        unsafe_allow_html=True,
+    )
+
+
+def footnote() -> None:
+    st.markdown(
+        '<p class="ja-footnote">Nothing is sent or submitted without you.</p>',
+        unsafe_allow_html=True,
+    )
+
+
+def muted(text: str) -> None:
+    st.markdown(f'<p class="ja-muted">{text}</p>', unsafe_allow_html=True)
+
+
+def coming_soon(what: str, milestone: str) -> None:
+    with st.container(border=True, key="card_coming_soon"):
+        st.markdown(f"**{what}** arrives in {milestone}.")
+        st.caption("This page is a placeholder for now.")

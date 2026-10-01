@@ -14,7 +14,7 @@ DATA_DIR = ROOT / "data"
 OUTPUT_DIR = ROOT / "output"
 DB_PATH = DATA_DIR / "app.db"
 
-DEFAULT_MODEL = "claude-sonnet-5-5"
+DEFAULT_MODEL = "claude-opus-5-5"
 KEY_PREFIX = "sk-ant-"
 
 

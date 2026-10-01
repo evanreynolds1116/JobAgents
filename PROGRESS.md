@@ -16,7 +16,7 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 ## Current status
 
 - **Current milestone:** 3. Fetch and draft
-- **Next step:** Start Milestone 3 by splitting `app.py` into `ui/` (approved), then the URL input, fetcher and pipeline steps 1 to 3
+- **Next step:** Run the 10-posting acceptance check for Milestone 3 (needs 10 real posting links from you; see Blockers), then Milestone 4
 - **Last updated:** 2026-10-01
 
 ## Build order
@@ -27,7 +27,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 |---|---|---|---|
 | 1 | Skeleton and setup | 1. Cover letter | Done |
 | 2 | Resume and profile | 1. Cover letter | Done |
-| 3 | Fetch and draft | 1. Cover letter | Not started |
+| 3 | Fetch and draft | 1. Cover letter | In progress (awaiting the 10-posting check) |
 | 4 | Verify, review and approve | 1. Cover letter | Not started |
 | 5 | Export, history and evaluation | 1. Cover letter | Not started |
 | 10 | Saved searches and Adzuna | 3. Job search | Not started |
@@ -52,9 +52,9 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Resume edits and profile fields (including writing sample) persist after a restart
 
 **Milestone 3. Fetch and draft**
-- [ ] URL input with the optional "Notes for this job" box
-- [ ] Blocked or empty pages fall back to pasting the posting text
-- [ ] 8 of the 10 test postings produce a draft with the correct company and title
+- [x] URL input with the optional "Notes for this job" box
+- [x] Blocked or empty pages fall back to pasting the posting text (login walls, JavaScript shells, 403/404, LinkedIn/Indeed; covered by tests)
+- [ ] 8 of the 10 test postings produce a draft with the correct company and title (3 of 3 made-up postings pass; real set pending)
 
 **Milestone 4. Verify, review and approve**
 - [ ] Humanize step and phrase linter run on every draft
@@ -126,6 +126,18 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-01 | `app.py` only calls `main()` when Streamlit runs it, so tests can import it and render one page | Streamlit's test tool can only switch between file-based pages | n/a |
 | 2026-10-01 | Each screen will move to its own file under `ui/`; `app.py` keeps start-up checks and navigation | `app.py` would grow too large by Milestone 4 | Yes |
 | 2026-10-01 | Profile has a phone country code (default +1, before Phone) and separate LinkedIn and portfolio links, instead of the spec's single "LinkedIn or portfolio URL". A saved `link` is moved to the matching field on load | User request | Yes (user's request) |
+| 2026-10-01 | All pipeline steps use `claude-opus-5-5` instead of the spec's `claude-sonnet-5-5` (still set in `.env`) | User request | Yes (user's request) |
+| 2026-10-01 | Server-side refusal fallback turned on (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`): if Claude declines a step, the API retries it on a fallback model in the same call | Anthropic's recommended default for this model; a refusal on a cover letter is very unlikely | Yes |
+| 2026-10-01 | Effort per step: parse `low`, match `medium`, draft `medium`. A test letter takes about 26 seconds end to end | Meets "first draft in under a minute"; raise draft effort if quality falls short | n/a |
+| 2026-10-01 | The fetcher doesn't request LinkedIn, Indeed, Glassdoor, Jobright or HiringCafe pages at all and goes straight to the paste box. It identifies itself honestly instead of imitating a browser | Their terms forbid automated reading (spec, Phase 3 guardrails); same outcome as the spec's paste fallback | Yes |
+| 2026-10-01 | The fetcher prefers a page's embedded schema.org JobPosting data when present, and caps posting text at 30,000 characters with a warning | Structured data survives JavaScript-heavy pages and gives the exact company and title; the cap is the spec's "very long posting" rule | n/a |
+| 2026-10-01 | Parse output adds `several_jobs`; match output gives each requirement a `kind`, a `feature` flag and evidence as `{quote, source}`. Code drops any quote that isn't really in the resume or notes, and keeps at most 4 featured | `several_jobs` drives the spec's confirm-company-and-title case; the quote check stops invented evidence before drafting | n/a |
+| 2026-10-01 | The draft step returns `{"letter": ...}` through structured outputs rather than free text, and gets the banned-phrase list to avoid. The phrase linter itself comes in Milestone 4 | No stray preamble around the letter; fewer phrases for step 4 to fix | n/a |
+| 2026-10-01 | Tone and length are chosen per letter on the New cover letter screen (defaulting to the profile) and aren't stored with the draft | The spec's `drafts` table has no column for them | n/a |
+| 2026-10-01 | Same-URL detection ignores tracking parameters (`utm_*`, `gh_src`, etc.), fragments and trailing slashes | So a link shared from a different place still finds the existing application | n/a |
+| 2026-10-01 | Milestone 3 includes a basic review screen (posting summary, match, draft, versions, copy). Approve, editing, claim checks and revise-with-feedback are Milestone 4 | Somewhere to see the draft after Generate | n/a |
+| 2026-10-01 | Pipeline tests replay real Claude responses recorded for made-up postings (`tests/fixtures/recorded/`, re-recorded with `tests/fixtures/record_pipeline.py`) | Spec: tests use recorded API responses so they cost nothing | n/a |
+| 2026-10-01 | The 10 real acceptance postings go in `tests/fixtures/real/`, which is gitignored; made-up fixtures stay in git | The repo is public and real postings are other companies' text | Yes |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
@@ -137,9 +149,19 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Approve or change the "Pending" rows in Decisions & deviations (all approved 2026-10-01)
 - [x] Git repository initialized at the workspace root (2026-10-01); first commit pushed to github.com/evanreynolds1116/JobAgents (`main`)
 - [x] Upload your real resume and confirm nothing is missing (confirmed 2026-10-01)
-- [x] Split `app.py` into one file per screen under `ui/`: approved 2026-10-01, to do at the start of Milestone 3
+- [x] Split `app.py` into one file per screen under `ui/`: done 2026-10-01
+- [ ] Milestone 3 acceptance: 10 real job posting links in your field, including 2 where your resume is a weak match and at least 1 from a site that blocks reading (e.g. LinkedIn), to check 8 of 10 get the right company and title. Running them uses your resume and costs roughly $0.50 with Opus
+- [x] Real postings go in a gitignored `tests/fixtures/real/` (approved 2026-10-01)
+- [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-01 (Milestone 3)
+- Worked on: Milestone 3, fetch and draft
+- Completed: Split the UI into `ui/` (setup, profile, new letter, review, placeholders, navigation, shared style). New cover letter screen per the mockup: job link, paste fallback, notes, tone and length, "What happens next". Fetcher (`agent/fetch.py`) with JSON-LD JobPosting support, login-wall/JavaScript-shell/HTTP-error detection and a 30,000-character cap. Pipeline steps 1 to 3 (`agent/pipeline.py`, prompts in `agent/prompts/`) using structured outputs, 3 SDK retries with backoff, one retry on invalid JSON with a debug panel, clear messages for API errors and refusals, and a code check that drops invented evidence quotes. Saves after every step; "Try again" resumes where it stopped. Same-URL detection with "Open it" / "Draft a new version". Confirm-company-and-title step when the parse is unclear. Basic review screen with posting summary, match, draft in Source Serif 4, versions and plain text to copy. Switched to `claude-opus-5-5` at the user's request.
+- Live check (made-up resume and postings only): 3 of 3 postings got the right company, title and contact; the prompt-injection posting produced a normal letter; about 26 seconds per letter. Tightened the draft prompt after spotting invented details ("last spring", "I haven't spent much time on a river").
+- Tests: 97 passed (`pytest`), none calling the API. New: `test_fetch.py`, `test_pipeline.py` (recorded responses), `test_drafting_ui.py`, plus query tests in `test_db.py`.
+- Next: user supplies 10 real postings for the acceptance check; then Milestone 4
 
 ### 2026-10-01 (Milestone 2 follow-up)
 - User confirmed their real resume converted with nothing missing: Milestone 2 Done.

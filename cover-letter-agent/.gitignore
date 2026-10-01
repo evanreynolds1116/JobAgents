@@ -8,3 +8,6 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+
+# Real job postings for acceptance checks (other companies' text; repo is public)
+tests/fixtures/real/
