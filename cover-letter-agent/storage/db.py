@@ -72,7 +72,7 @@ APPLICATION_FIELDS = {
     "status", "approved_at", "submitted_at", "sent_version", "notes",
 }
 JSON_FIELDS = ("parsed_json", "match_json", "notes")
-TRACKING_PARAMS = ("utm_", "gh_src", "ref", "source", "src", "trk")
+TRACKING_PARAMS = ("utm_", "gh_src", "jr_", "ref", "source", "src", "trk")
 
 
 def normalize_url(url: str | None) -> str | None:

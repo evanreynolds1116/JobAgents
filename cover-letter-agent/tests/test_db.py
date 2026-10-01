@@ -64,6 +64,7 @@ def test_draft_versions_unique_per_application(conn):
 @pytest.mark.parametrize("raw, expected", [
     ("Boards.Greenhouse.io/acme/jobs/123/?gh_src=abc&utm_source=x#apply", "https://boards.greenhouse.io/acme/jobs/123"),
     ("https://jobs.example.com/view?id=42&utm_campaign=z", "https://jobs.example.com/view?id=42"),
+    ("https://jobs.ashbyhq.com/acme/123/application?jr_id=6abd", "https://jobs.ashbyhq.com/acme/123/application"),
     ("  ", None),
     (None, None),
 ])

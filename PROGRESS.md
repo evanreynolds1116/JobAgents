@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 3. Fetch and draft
-- **Next step:** Run the 10-posting acceptance check for Milestone 3 (needs 10 real posting links from you; see Blockers), then Milestone 4
+- **Current milestone:** 4. Verify, review and approve
+- **Next step:** Build Milestone 4
 - **Last updated:** 2026-10-01
 
 ## Build order
@@ -27,7 +27,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 |---|---|---|---|
 | 1 | Skeleton and setup | 1. Cover letter | Done |
 | 2 | Resume and profile | 1. Cover letter | Done |
-| 3 | Fetch and draft | 1. Cover letter | In progress (awaiting the 10-posting check) |
+| 3 | Fetch and draft | 1. Cover letter | Done |
 | 4 | Verify, review and approve | 1. Cover letter | Not started |
 | 5 | Export, history and evaluation | 1. Cover letter | Not started |
 | 10 | Saved searches and Adzuna | 3. Job search | Not started |
@@ -54,7 +54,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 **Milestone 3. Fetch and draft**
 - [x] URL input with the optional "Notes for this job" box
 - [x] Blocked or empty pages fall back to pasting the posting text (login walls, JavaScript shells, 403/404, LinkedIn/Indeed; covered by tests)
-- [ ] 8 of the 10 test postings produce a draft with the correct company and title (3 of 3 made-up postings pass; real set pending)
+- [x] 8 of the 10 test postings produce a draft with the correct company and title (8 of 8 real postings correct; the 2 LinkedIn postings need pasted text)
 
 **Milestone 4. Verify, review and approve**
 - [ ] Humanize step and phrase linter run on every draft
@@ -128,7 +128,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-01 | Profile has a phone country code (default +1, before Phone) and separate LinkedIn and portfolio links, instead of the spec's single "LinkedIn or portfolio URL". A saved `link` is moved to the matching field on load | User request | Yes (user's request) |
 | 2026-10-01 | All pipeline steps use `claude-opus-5-5` instead of the spec's `claude-sonnet-5-5` (still set in `.env`) | User request | Yes (user's request) |
 | 2026-10-01 | Server-side refusal fallback turned on (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`): if Claude declines a step, the API retries it on a fallback model in the same call | Anthropic's recommended default for this model; a refusal on a cover letter is very unlikely | Yes |
-| 2026-10-01 | Effort per step: parse `low`, match `medium`, draft `medium`. A test letter takes about 26 seconds end to end | Meets "first draft in under a minute"; raise draft effort if quality falls short | n/a |
+| 2026-10-01 | Effort per step: parse `low`, match `low`, draft `medium`. Match was `medium` until real postings took 44–66 seconds; at `low` the slowest one took 45 seconds | Spec goal: first draft in under a minute | Yes (user chose `low` for match) |
 | 2026-10-01 | The fetcher doesn't request LinkedIn, Indeed, Glassdoor, Jobright or HiringCafe pages at all and goes straight to the paste box. It identifies itself honestly instead of imitating a browser | Their terms forbid automated reading (spec, Phase 3 guardrails); same outcome as the spec's paste fallback | Yes |
 | 2026-10-01 | The fetcher prefers a page's embedded schema.org JobPosting data when present, and caps posting text at 30,000 characters with a warning | Structured data survives JavaScript-heavy pages and gives the exact company and title; the cap is the spec's "very long posting" rule | n/a |
 | 2026-10-01 | Parse output adds `several_jobs`; match output gives each requirement a `kind`, a `feature` flag and evidence as `{quote, source}`. Code drops any quote that isn't really in the resume or notes, and keeps at most 4 featured | `several_jobs` drives the spec's confirm-company-and-title case; the quote check stops invented evidence before drafting | n/a |
@@ -150,11 +150,20 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Git repository initialized at the workspace root (2026-10-01); first commit pushed to github.com/evanreynolds1116/JobAgents (`main`)
 - [x] Upload your real resume and confirm nothing is missing (confirmed 2026-10-01)
 - [x] Split `app.py` into one file per screen under `ui/`: done 2026-10-01
-- [ ] Milestone 3 acceptance: 10 real job posting links in your field, including 2 where your resume is a weak match and at least 1 from a site that blocks reading (e.g. LinkedIn), to check 8 of 10 get the right company and title. Running them uses your resume and costs roughly $0.50 with Opus
+- [x] Milestone 3 acceptance: 10 real links received 2026-10-01; 8 of 8 readable postings correct (see session log)
+- [ ] Optional: paste the text of the 2 LinkedIn postings (09, 10) to complete the 10-posting set; Milestone 5's evaluation reuses it
+- [x] Draft speed: match effort lowered to `low` (2026-10-01); slowest real posting went from 66 to 45 seconds
 - [x] Real postings go in a gitignored `tests/fixtures/real/` (approved 2026-10-01)
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-01 (Milestone 3 acceptance)
+- Ran the user's 10 posting links through the app's fetcher. Read automatically: 02 OnePay, 03 Tilt, 05 Realm, 06 Cohere, 08 Tessera Labs (Ashby/Rippling, via embedded JobPosting data) and 04 Axios (Greenhouse, after raising the timeout). Fell back to paste as designed: 01 Regal (UltiPro, JavaScript page), 07 Versant (SmartRecruiters, JavaScript page), 09 and 10 (LinkedIn, not requested). Stand-ins for the pasted text of 01 and 07 came from the saved page data and SmartRecruiters' public postings API.
+- Full pipeline on 01–08 with the user's resume and profile: 8 of 8 correct company and title, no invented evidence quotes dropped, 359–410 words, 44–66 seconds each. Milestone 3 Done.
+- Fetcher fixes found by the run: timeout 20 → 30 seconds (Greenhouse took 16 s), "unsupported browser" pages reported as JavaScript pages, Jobright's `jr_id` ignored when spotting duplicate links. Postings and results are in the gitignored `tests/fixtures/real/`.
+- Tests: 100 passed.
+- Follow-up: match effort lowered to `low` at the user's request; posting 04 (Axios) re-run in 45 seconds instead of 66, still correct.
 
 ### 2026-10-01 (Milestone 3)
 - Worked on: Milestone 3, fetch and draft

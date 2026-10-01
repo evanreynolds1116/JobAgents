@@ -17,7 +17,7 @@ import trafilatura
 
 MAX_CHARS = 30_000   # cap on posting text sent to Claude; you're warned if it's trimmed
 MIN_CHARS = 400      # less than this is a login wall, an error page or a JavaScript shell
-TIMEOUT = 20.0
+TIMEOUT = 30.0     # some applicant tracking systems are slow (Greenhouse took 16 s in testing)
 # Says what it is rather than imitating a browser; sites that refuse it get the paste fallback.
 USER_AGENT = "Mozilla/5.0 (compatible; JobAssistant/0.1; personal job-application helper)"
 
@@ -26,7 +26,7 @@ USER_AGENT = "Mozilla/5.0 (compatible; JobAssistant/0.1; personal job-applicatio
 NO_FETCH_DOMAINS = ("linkedin.com", "indeed.com", "glassdoor.com", "jobright.ai", "hiring.cafe")
 
 LOGIN_HINTS = ("sign in", "log in", "login", "create an account", "join now")
-JS_HINTS = ("enable javascript", "javascript is required", "javascript is disabled")
+JS_HINTS = ("enable javascript", "javascript is required", "javascript is disabled", "unsupported browser")
 
 
 @dataclass

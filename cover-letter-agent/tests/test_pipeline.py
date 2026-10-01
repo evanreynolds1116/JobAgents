@@ -75,7 +75,7 @@ def test_requests_use_structured_output_effort_and_fallback():
     client, *_ = replay("hockey_with_notes")
     parse_req, match_req, draft_req = client.requests
     assert parse_req["output_config"]["format"]["schema"] == pipeline.PARSE_SCHEMA
-    assert [r["output_config"]["effort"] for r in client.requests] == ["low", "medium", "medium"]
+    assert [r["output_config"]["effort"] for r in client.requests] == ["low", "low", "medium"]
     for req in client.requests:
         assert req["model"] == MODEL
         assert req["fallbacks"] == "default" and req["betas"] == [pipeline.FALLBACK_BETA]

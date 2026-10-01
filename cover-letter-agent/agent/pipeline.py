@@ -19,7 +19,7 @@ BANNED_PHRASES = Path(__file__).resolve().parent / "style" / "banned_phrases.txt
 # fallback model inside the same call (Claude API only).
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_TOKENS = 16_000
-EFFORT = {"parse": "low", "match": "medium", "draft": "medium"}
+EFFORT = {"parse": "low", "match": "low", "draft": "medium"}
 
 
 class PipelineError(Exception):

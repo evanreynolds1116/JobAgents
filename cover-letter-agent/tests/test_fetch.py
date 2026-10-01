@@ -39,6 +39,11 @@ def test_unreadable_pages_fall_back_to_paste(name, reason):
     assert reason in result.reason
 
 
+def test_unsupported_browser_page_counts_as_javascript():
+    page = "<html><body><p>You are using an unsupported browser.</p><p>Download Chrome</p></body></html>"
+    assert "JavaScript" in fetch.extract(page).reason
+
+
 def test_long_posting_is_trimmed_with_warning():
     body = "".join(f"<p>Paragraph {i}: " + f"requirement {i} detail, " * 40 + "</p>\n" for i in range(60))
     result = fetch.extract(f"<html><body><main><h1>Job</h1>{body}</main></body></html>")
