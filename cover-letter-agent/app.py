@@ -69,8 +69,8 @@ def applications_page() -> None:
 
 # Profile & resume -----------------------------------------------------------
 
-PROFILE_FIELDS = ("name", "email", "phone", "city", "link", "tone", "length",
-                  "sign_off", "always_mention", "never_mention")
+PROFILE_FIELDS = ("name", "email", "country_code", "phone", "city", "linkedin", "portfolio",
+                  "tone", "length", "sign_off", "always_mention", "never_mention")
 
 
 def _load_profile_state() -> None:
@@ -90,6 +90,7 @@ def _load_profile_state() -> None:
 
 def _profile_from_state() -> profile_store.Profile:
     values = {name: st.session_state.get(f"pf_{name}", "") for name in PROFILE_FIELDS}
+    values["country_code"] = profile_store.normalize_country_code(values["country_code"])
     samples = [st.session_state.get(f"pf_sample_{i}", "")
                for i in range(st.session_state.get("pf_sample_count", 1))]
     return profile_store.Profile(**values, writing_samples=[s for s in samples if s.strip()])
@@ -104,6 +105,7 @@ def _has_unsaved_changes() -> bool:
 def _save_profile() -> None:
     current = _profile_from_state()
     profile_store.save(current)
+    st.session_state.pf_country_code = current.country_code  # show "+44", not "44"
     resume.save_text(st.session_state.get("pf_resume_text", ""))
     st.session_state.pf_flash = ("success", "Saved.")
     st.session_state.pf_problems = current.problems()
@@ -221,9 +223,13 @@ def profile_page() -> None:
             a, b = st.columns(2)
             a.text_input("Full name", key="pf_name", placeholder="Your name")
             b.text_input("Email", key="pf_email", placeholder="you@example.com")
-            a.text_input("Phone", key="pf_phone", placeholder="(555) 555-0100")
-            b.text_input("City", key="pf_city", placeholder="City, State")
-            st.text_input("LinkedIn or portfolio", key="pf_link", placeholder="https://")
+            code, phone, city = st.columns([1, 2, 3])
+            code.text_input("Country code", key="pf_country_code", placeholder="+1")
+            phone.text_input("Phone", key="pf_phone", placeholder="(555) 555-0100")
+            city.text_input("City", key="pf_city", placeholder="City, State")
+            a, b = st.columns(2)
+            a.text_input("LinkedIn", key="pf_linkedin", placeholder="https://www.linkedin.com/in/…")
+            b.text_input("Portfolio or website", key="pf_portfolio", placeholder="https://")
             a, b = st.columns(2)
             a.selectbox("Default tone", profile_store.TONES, key="pf_tone")
             b.selectbox("Default length", profile_store.LENGTHS, key="pf_length")

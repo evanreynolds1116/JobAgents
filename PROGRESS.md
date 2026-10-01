@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 2. Resume and profile
-- **Next step:** User uploads their real resume on Profile & resume and confirms no sections are missing (last open criterion for Milestone 2); then build Milestone 3
+- **Current milestone:** 3. Fetch and draft
+- **Next step:** Start Milestone 3 by splitting `app.py` into `ui/` (approved), then the URL input, fetcher and pipeline steps 1 to 3
 - **Last updated:** 2026-10-01
 
 ## Build order
@@ -26,7 +26,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | # | Milestone | Phase | Status |
 |---|---|---|---|
 | 1 | Skeleton and setup | 1. Cover letter | Done |
-| 2 | Resume and profile | 1. Cover letter | In progress (awaiting your real-resume check) |
+| 2 | Resume and profile | 1. Cover letter | Done |
 | 3 | Fetch and draft | 1. Cover letter | Not started |
 | 4 | Verify, review and approve | 1. Cover letter | Not started |
 | 5 | Export, history and evaluation | 1. Cover letter | Not started |
@@ -48,7 +48,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] `data/`, `output/` and `.env` are gitignored
 
 **Milestone 2. Resume and profile**
-- [ ] Uploading the user's real resume (PDF or .docx) converts to `resume.md` with no missing sections
+- [x] Uploading the user's real resume (PDF or .docx) converts to `resume.md` with no missing sections (confirmed by user 2026-10-01)
 - [x] Resume edits and profile fields (including writing sample) persist after a restart
 
 **Milestone 3. Fetch and draft**
@@ -125,6 +125,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-01 | Profile also holds a default length (250–400 words or under 250) next to tone | Spec's profile lists "target length"; options match the New cover letter mockup | n/a |
 | 2026-10-01 | `app.py` only calls `main()` when Streamlit runs it, so tests can import it and render one page | Streamlit's test tool can only switch between file-based pages | n/a |
 | 2026-10-01 | Each screen will move to its own file under `ui/`; `app.py` keeps start-up checks and navigation | `app.py` would grow too large by Milestone 4 | Yes |
+| 2026-10-01 | Profile has a phone country code (default +1, before Phone) and separate LinkedIn and portfolio links, instead of the spec's single "LinkedIn or portfolio URL". A saved `link` is moved to the matching field on load | User request | Yes (user's request) |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
@@ -135,10 +136,15 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Fonts: bundle locally (approved 2026-10-01)
 - [x] Approve or change the "Pending" rows in Decisions & deviations (all approved 2026-10-01)
 - [x] Git repository initialized at the workspace root (2026-10-01); first commit pushed to github.com/evanreynolds1116/JobAgents (`main`)
-- [ ] Upload your real resume and confirm nothing is missing (Milestone 2 acceptance)
+- [x] Upload your real resume and confirm nothing is missing (confirmed 2026-10-01)
 - [x] Split `app.py` into one file per screen under `ui/`: approved 2026-10-01, to do at the start of Milestone 3
 
 ## Session log
+
+### 2026-10-01 (Milestone 2 follow-up)
+- User confirmed their real resume converted with nothing missing: Milestone 2 Done.
+- Added a country code field before Phone and split the link into LinkedIn and Portfolio or website, with warnings for a malformed code or a LinkedIn link that isn't linkedin.com. Old single `link` values move to the right field automatically; the user's saved profile loads with no problems.
+- Tests: 46 passed.
 
 ### 2026-10-01 (Milestone 2)
 - Worked on: Milestone 2, resume and profile

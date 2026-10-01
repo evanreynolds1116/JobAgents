@@ -51,10 +51,39 @@ def test_hand_edited_file_is_tolerated(app_paths):
     assert p.writing_samples == []
 
 
-def test_problems_flag_bad_email_and_link():
-    p = profile_store.Profile(email="jordan.example.com", link="linkedin.com/in/jordan")
-    assert len(p.problems()) == 2
-    assert profile_store.Profile(email="j@example.com", link="https://x.example").problems() == []
+def test_problems_flag_bad_email_code_and_links():
+    p = profile_store.Profile(
+        email="jordan.example.com", country_code="+1-800",
+        linkedin="linkedin.com/in/jordan", portfolio="jordan.example",
+    )
+    assert len(p.problems()) == 4
+    assert len(profile_store.Profile(linkedin="https://jordan.example").problems()) == 1
+    good = profile_store.Profile(
+        email="j@example.com", country_code="44",
+        linkedin="https://www.linkedin.com/in/jordan", portfolio="https://jordan.example",
+    )
+    assert good.problems() == []
+
+
+def test_country_code_round_trips_with_plus(app_paths):
+    profile_store.save(profile_store.Profile(country_code=" 44 "))
+    assert profile_store.load().country_code == "+44"
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    profile_store.profile_path().write_text("country_code: +1\n", encoding="utf-8")  # YAML reads 1
+    assert profile_store.load().country_code == "+1"
+
+
+@pytest.mark.parametrize("old, field", [
+    ("https://www.linkedin.com/in/jordan", "linkedin"),
+    ("https://jordan.example", "portfolio"),
+])
+def test_old_single_link_moves_to_right_field(app_paths, old, field):
+    config.DATA_DIR.mkdir(parents=True)
+    profile_store.profile_path().write_text(f"name: Jordan\nlink: {old}\n", encoding="utf-8")
+    p = profile_store.load()
+    assert getattr(p, field) == old
+    profile_store.save(p)
+    assert "link:" not in profile_store.profile_path().read_text(encoding="utf-8")
 
 
 # --- Profile screen --------------------------------------------------------
@@ -88,6 +117,9 @@ def click(at, label):
 def test_edits_persist_after_restart(at):
     at.text_input(key="pf_name").input("Jordan Avery")
     at.text_input(key="pf_email").input("jordan@example.com")
+    at.text_input(key="pf_country_code").input("44")
+    at.text_input(key="pf_linkedin").input("https://www.linkedin.com/in/jordan")
+    at.text_input(key="pf_portfolio").input("https://jordan.example")
     at.selectbox(key="pf_tone").select("More formal")
     at.text_area(key="pf_sample_0").input("A past cover letter I liked.")
     at.text_area(key="pf_resume_text").input("# Jordan Avery\n\n## Experience\n\nEdited by hand.")
@@ -101,6 +133,8 @@ def test_edits_persist_after_restart(at):
     again = open_profile()
     assert again.text_input(key="pf_name").value == "Jordan Avery"
     assert again.selectbox(key="pf_tone").value == "More formal"
+    assert again.text_input(key="pf_country_code").value == "+44"
+    assert again.text_input(key="pf_portfolio").value == "https://jordan.example"
     assert again.text_area(key="pf_sample_0").value == "A past cover letter I liked."
     assert "Edited by hand." in again.text_area(key="pf_resume_text").value
 
