@@ -1,0 +1,58 @@
+# Streamlit settings for the Job Application Assistant.
+# Colors follow the design tokens in ../ui-mockup/README.md.
+
+[browser]
+# The spec allows no analytics or other third-party services.
+gatherUsageStats = false
+
+[server]
+# Local-only app: listen on this computer only.
+address = "localhost"
+headless = true
+# Serves static/ (bundled fonts) at app/static/, so nothing loads from Google.
+enableStaticServing = true
+
+[client]
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+primaryColor = "#0F6E63"
+backgroundColor = "#F3F5F7"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#15202B"
+borderColor = "#D9DFE5"
+linkColor = "#0F6E63"
+baseRadius = "8px"
+showSidebarBorder = false
+font = "Public Sans, sans-serif"
+codeFont = "IBM Plex Mono, monospace"
+
+# Fonts bundled in static/fonts/ (SIL Open Font License, see OFL-*.txt there).
+# Source Serif 4 is for the letter text, applied with CSS on the review screen.
+[[theme.fontFaces]]
+family = "Public Sans"
+url = "app/static/fonts/PublicSans-Variable.ttf"
+weight = "100 900"
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/IBMPlexMono-Regular.ttf"
+weight = "400"
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/IBMPlexMono-Medium.ttf"
+weight = "500"
+
+[[theme.fontFaces]]
+family = "Source Serif 4"
+url = "app/static/fonts/SourceSerif4-Variable.ttf"
+weight = "200 900"
+
+[theme.sidebar]
+backgroundColor = "#15202B"
+secondaryBackgroundColor = "#2A3B4C"
+textColor = "#D6DEE6"
+primaryColor = "#0F6E63"
+borderColor = "#2A3B4C"

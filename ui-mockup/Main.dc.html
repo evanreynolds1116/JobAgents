@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Find jobs</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap"/>
+<style>
+body{margin:0}
+a{color:#0F6E63}a:hover{color:#0B5249}
+</style>
+</helmet>
+<div style="display: flex; width: 100%; min-height: 960px; background: #F3F5F7; color: #15202B; font-family: 'Public Sans', system-ui, sans-serif">
+<nav aria-label="Main navigation" style="width: 240px; flex-shrink: 0; background: #15202B; padding: 28px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px">
+<div style="color: #FFFFFF; font-weight: 700; font-size: 18px; padding: 0 12px 2px">Job Assistant</div>
+<div style="color: #A9B6C2; font-size: 13px; padding: 0 12px 20px">Runs on your computer</div>
+<a href="Main.dc.html" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-size: 15px; font-weight: 600; background: #2A3B4C">Find jobs<span style="font-size: 12px; font-weight: 600; background: #0F6E63; color: #FFFFFF; border-radius: 10px; padding: 2px 8px">12 new</span></a>
+<a href="NewLetter.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #D6DEE6; text-decoration: none; font-size: 15px">New cover letter</a>
+<a href="Applications.dc.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #D6DEE6; text-decoration: none; font-size: 15px">Applications<span style="font-size: 12px; color: #A9B6C2">5</span></a>
+<a href="Profile.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #D6DEE6; text-decoration: none; font-size: 15px">Profile &amp; resume</a>
+<div style="margin-top: auto; color: #A9B6C2; font-size: 13px; line-height: 1.5; padding: 0 12px">Nothing is sent or submitted without you.</div>
+</nav>
+<main style="flex-grow: 1; min-width: 0; padding: 40px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; max-width: 1240px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap">
+<div>
+<h1 style="margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.01em">Find jobs</h1>
+<p style="margin: 6px 0 0; color: #4F5B66; font-size: 15px">Last run today at 7:52 AM · 12 new postings since yesterday</p>
+</div>
+<div style="display: flex; gap: 12px">
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer">Edit searches</button>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: none; background: #0F6E63; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer">Run search now</button>
+</div>
+</div>
+<section aria-label="Saved search" style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 12px; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Saved search: Marketing roles</h2>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #4F5B66">Adzuna calls today: 6 of 250</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<span style="display: inline-flex; gap: 6px; padding: 7px 12px; border-radius: 999px; background: #F3F5F7; border: 1px solid #D9DFE5; font-size: 14px"><span style="color: #4F5B66">Titles</span>Marketing Coordinator, Social Media Manager</span>
+<span style="display: inline-flex; gap: 6px; padding: 7px 12px; border-radius: 999px; background: #F3F5F7; border: 1px solid #D9DFE5; font-size: 14px"><span style="color: #4F5B66">Hybrid near</span>Denver, CO (25 mi)</span>
+<span style="display: inline-flex; gap: 6px; padding: 7px 12px; border-radius: 999px; background: #F3F5F7; border: 1px solid #D9DFE5; font-size: 14px"><span style="color: #4F5B66">Remote</span>Anywhere in the US</span>
+<span style="display: inline-flex; gap: 6px; padding: 7px 12px; border-radius: 999px; background: #F3F5F7; border: 1px solid #D9DFE5; font-size: 14px"><span style="color: #4F5B66">Salary</span>$55k–$80k</span>
+<span style="display: inline-flex; gap: 6px; padding: 7px 12px; border-radius: 999px; background: #F3F5F7; border: 1px solid #D9DFE5; font-size: 14px"><span style="color: #4F5B66">Posted</span>Last 3 days</span>
+<span style="display: inline-flex; gap: 6px; padding: 7px 12px; border-radius: 999px; background: #F3F5F7; border: 1px solid #D9DFE5; font-size: 14px"><span style="color: #4F5B66">Watch list</span>4 companies</span>
+</div>
+<label style="display: flex; align-items: center; gap: 10px; font-size: 14px; min-height: 32px"><input type="checkbox" style="width: 18px; height: 18px; margin: 0"/>Hide jobs with no salary listed</label>
+</section>
+<div role="tablist" aria-label="Result groups" style="display: flex; gap: 4px; border-bottom: 1px solid #D9DFE5">
+<button type="button" role="tab" aria-selected="true" style="height: 44px; padding: 0 16px; border: none; border-bottom: 2px solid #0F6E63; background: transparent; color: #15202B; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer">New (12)</button>
+<button type="button" role="tab" aria-selected="false" style="height: 44px; padding: 0 16px; border: none; border-bottom: 2px solid transparent; background: transparent; color: #4F5B66; font: inherit; font-size: 15px; cursor: pointer">Saved (3)</button>
+<button type="button" role="tab" aria-selected="false" style="height: 44px; padding: 0 16px; border: none; border-bottom: 2px solid transparent; background: transparent; color: #4F5B66; font: inherit; font-size: 15px; cursor: pointer">Dismissed (21)</button>
+</div>
+<section aria-label="New postings" style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 12px; overflow: hidden">
+<div style="display: grid; grid-template-columns: 56px minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 96px 268px; gap: 16px; padding: 12px 20px; background: #F7F9FA; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #4F5B66">
+<span>Fit</span><span>Role</span><span>Location</span><span>Salary</span><span>Posted</span><span></span>
+</div>
+<div style="display: grid; grid-template-columns: 56px minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 96px 268px; gap: 16px; padding: 16px 20px; border-top: 1px solid #E6EAEE; align-items: center">
+<span aria-label="Fit 5 of 5" style="display: inline-flex; width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; background: #E3F1EE; color: #0F6E63">5</span>
+<div>
+<div style="font-weight: 600; font-size: 16px">Social Media Coordinator</div>
+<div style="font-size: 14px; color: #4F5B66; margin-top: 2px">Summit City Hockey Club · via Adzuna</div>
+<div style="font-size: 13px; color: #0F6E63; margin-top: 4px">Meets 4 of 5 must-haves · sports content</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 14px">Denver, CO<span style="font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #E6EEF8; color: #1F4E8C">Hybrid</span></div>
+<div style="font-size: 15px">$60k–$75k</div>
+<div style="font-size: 14px; color: #4F5B66">Today</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end">
+<a href="NewLetter.dc.html" style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 8px; background: #0F6E63; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600">Start letter</a>
+<button type="button" style="height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Save</button>
+<button type="button" aria-label="Dismiss" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #4F5B66; cursor: pointer; display: inline-flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg></button>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: 56px minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 96px 268px; gap: 16px; padding: 16px 20px; border-top: 1px solid #E6EAEE; align-items: center">
+<span aria-label="Fit 4 of 5" style="display: inline-flex; width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; background: #E3F1EE; color: #0F6E63">4</span>
+<div>
+<div style="font-weight: 600; font-size: 16px">Marketing Coordinator</div>
+<div style="font-size: 14px; color: #4F5B66; margin-top: 2px">Northwind Outfitters · via watch list (Greenhouse)</div>
+<div style="font-size: 13px; color: #0F6E63; margin-top: 4px">Meets 3 of 4 must-haves</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 14px">Denver, CO<span style="font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #E6EEF8; color: #1F4E8C">Hybrid</span></div>
+<div style="font-size: 15px">$58k–$66k</div>
+<div style="font-size: 14px; color: #4F5B66">1 day ago</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end">
+<a href="NewLetter.dc.html" style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 8px; background: #0F6E63; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600">Start letter</a>
+<button type="button" style="height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Save</button>
+<button type="button" aria-label="Dismiss" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #4F5B66; cursor: pointer; display: inline-flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg></button>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: 56px minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 96px 268px; gap: 16px; padding: 16px 20px; border-top: 1px solid #E6EAEE; align-items: center">
+<span aria-label="Fit 4 of 5" style="display: inline-flex; width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; background: #E3F1EE; color: #0F6E63">4</span>
+<div>
+<div style="font-weight: 600; font-size: 16px">Content Marketing Specialist</div>
+<div style="font-size: 14px; color: #4F5B66; margin-top: 2px">Brightline Health · via Adzuna</div>
+<div style="font-size: 13px; color: #0F6E63; margin-top: 4px">Strong writing match · no healthcare background</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 14px">Remote (US)<span style="font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #E3F1EE; color: #0F6E63">Remote</span></div>
+<div style="font-size: 15px; color: #4F5B66">Not listed</div>
+<div style="font-size: 14px; color: #4F5B66">2 days ago</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end">
+<a href="NewLetter.dc.html" style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 8px; background: #0F6E63; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600">Start letter</a>
+<button type="button" style="height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Save</button>
+<button type="button" aria-label="Dismiss" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #4F5B66; cursor: pointer; display: inline-flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg></button>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: 56px minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 96px 268px; gap: 16px; padding: 16px 20px; border-top: 1px solid #E6EAEE; align-items: center">
+<span aria-label="Fit 3 of 5" style="display: inline-flex; width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; background: #EEF1F4; color: #15202B">3</span>
+<div>
+<div style="font-weight: 600; font-size: 16px">Social Media Manager</div>
+<div style="font-size: 14px; color: #4F5B66; margin-top: 2px">Fieldhouse Media · via watch list (Lever)</div>
+<div style="font-size: 13px; color: #4F5B66; margin-top: 4px">Asks for 5+ years managing a team</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 14px">Remote (US)<span style="font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #E3F1EE; color: #0F6E63">Remote</span></div>
+<div style="font-size: 15px">$72k–$85k</div>
+<div style="font-size: 14px; color: #4F5B66">2 days ago</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end">
+<a href="NewLetter.dc.html" style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 8px; background: #0F6E63; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600">Start letter</a>
+<button type="button" style="height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Save</button>
+<button type="button" aria-label="Dismiss" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #4F5B66; cursor: pointer; display: inline-flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg></button>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: 56px minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 96px 268px; gap: 16px; padding: 16px 20px; border-top: 1px solid #E6EAEE; align-items: center">
+<span aria-label="Fit 2 of 5" style="display: inline-flex; width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; background: #EEF1F4; color: #4F5B66">2</span>
+<div>
+<div style="font-weight: 600; font-size: 16px">Marketing Associate</div>
+<div style="font-size: 14px; color: #4F5B66; margin-top: 2px">Copperleaf Foods · via Adzuna</div>
+<div style="font-size: 13px; color: #4F5B66; margin-top: 4px">Mostly trade-show logistics</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 14px">Denver, CO<span style="font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #FDF1E2; color: #8A4B08">Unknown: check posting</span></div>
+<div style="font-size: 15px">$55k–$62k <span style="font-size: 12px; color: #4F5B66">est.</span></div>
+<div style="font-size: 14px; color: #4F5B66">3 days ago</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end">
+<a href="NewLetter.dc.html" style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 8px; background: #0F6E63; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600">Start letter</a>
+<button type="button" style="height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Save</button>
+<button type="button" aria-label="Dismiss" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #4F5B66; cursor: pointer; display: inline-flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg></button>
+</div>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-top: 1px solid #E6EAEE; font-size: 14px; color: #4F5B66">
+<span>Showing 5 of 12 new · sorted by fit, then date · sample data</span>
+<button type="button" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Show more</button>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

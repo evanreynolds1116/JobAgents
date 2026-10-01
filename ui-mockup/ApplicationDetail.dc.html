@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Application detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap"/>
+<style>
+body{margin:0}
+a{color:#0F6E63}a:hover{color:#0B5249}
+</style>
+</helmet>
+<div style="display: flex; width: 100%; min-height: 1120px; background: #F3F5F7; color: #15202B; font-family: 'Public Sans', system-ui, sans-serif">
+<nav aria-label="Main navigation" style="width: 240px; flex-shrink: 0; background: #15202B; padding: 28px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px">
+<div style="color: #FFFFFF; font-weight: 700; font-size: 18px; padding: 0 12px 2px">Job Assistant</div>
+<div style="color: #A9B6C2; font-size: 13px; padding: 0 12px 20px">Runs on your computer</div>
+<a href="Main.dc.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #D6DEE6; text-decoration: none; font-size: 15px">Find jobs<span style="font-size: 12px; font-weight: 600; background: #0F6E63; color: #FFFFFF; border-radius: 10px; padding: 2px 8px">12 new</span></a>
+<a href="NewLetter.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #D6DEE6; text-decoration: none; font-size: 15px">New cover letter</a>
+<a href="Applications.dc.html" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-size: 15px; font-weight: 600; background: #2A3B4C">Applications<span style="font-size: 12px; color: #A9B6C2">5</span></a>
+<a href="Profile.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #D6DEE6; text-decoration: none; font-size: 15px">Profile &amp; resume</a>
+<div style="margin-top: auto; color: #A9B6C2; font-size: 13px; line-height: 1.5; padding: 0 12px">Nothing is sent or submitted without you.</div>
+</nav>
+<main style="flex-grow: 1; min-width: 0; padding: 40px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; max-width: 1240px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap">
+<div>
+<div style="font-size: 14px; color: #4F5B66"><a href="Applications.dc.html">Applications</a> › Fieldhouse Media</div>
+<div style="display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap">
+<h1 style="margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.01em">Social Media Manager</h1>
+<span style="font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 6px; background: #0F6E63; color: #FFFFFF">Submitted Sep 28</span>
+</div>
+<p style="margin: 6px 0 0; color: #4F5B66; font-size: 15px">Fieldhouse Media · Remote (US) · $72k–$85k (from the posting)</p>
+</div>
+<a href="#original" style="display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; text-decoration: none; font-size: 15px; font-weight: 600">Original posting link</a>
+</div>
+<ol aria-label="Key dates" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+<li style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; font-size: 14px"><span style="color: #4F5B66">Found</span><strong>Sep 26</strong><span style="color: #4F5B66; font-size: 13px">Watch list (Lever)</span></li>
+<li style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; font-size: 14px"><span style="color: #4F5B66">Letter approved</span><strong>Sep 27</strong><span style="color: #4F5B66; font-size: 13px">Version 3</span></li>
+<li style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; font-size: 14px"><span style="color: #4F5B66">Applied</span><strong>Sep 28</strong><span style="color: #4F5B66; font-size: 13px">You submitted</span></li>
+<li style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; font-size: 14px"><span style="color: #4F5B66">Last update</span><strong>Oct 1</strong><span style="color: #4F5B66; font-size: 13px">Recruiter call</span></li>
+</ol>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start">
+<section aria-label="Saved application record" style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 12px; overflow: hidden; min-width: 0">
+<div role="tablist" aria-label="Application record" style="display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid #D9DFE5">
+<button type="button" role="tab" aria-selected="true" style="height: 48px; padding: 0 14px; border: none; border-bottom: 2px solid #0F6E63; background: transparent; color: #15202B; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer">Job description</button>
+<button type="button" role="tab" aria-selected="false" style="height: 48px; padding: 0 14px; border: none; border-bottom: 2px solid transparent; background: transparent; color: #4F5B66; font: inherit; font-size: 15px; cursor: pointer">Cover letter sent (v3)</button>
+<button type="button" role="tab" aria-selected="false" style="height: 48px; padding: 0 14px; border: none; border-bottom: 2px solid transparent; background: transparent; color: #4F5B66; font: inherit; font-size: 15px; cursor: pointer">Your answers (12)</button>
+</div>
+<div style="padding: 24px 28px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 8px; background: #FDF1E2; color: #6B3A06; font-size: 14px">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.5"></circle><path d="M8 4.5v4M8 11h.01"></path></svg>
+<span>Saved copy from Sep 26. The original posting has since been taken down.</span>
+</div>
+<div style="font-size: 15px; line-height: 1.65; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">About the role</h2>
+<p style="margin: 0">Fieldhouse Media runs social channels for sports and outdoor brands. The Social Media Manager owns day-to-day publishing for three client accounts and leads a team of two coordinators.</p>
+<h2 style="margin: 4px 0 0; font-size: 17px; font-weight: 700">What you'll do</h2>
+<ul style="margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px">
+<li>Plan and publish content across Instagram, TikTok and YouTube Shorts</li>
+<li>Run live coverage for client events and game days</li>
+<li>Report monthly on reach and engagement to each client</li>
+<li>Coach two coordinators and review their work</li>
+</ul>
+<h2 style="margin: 4px 0 0; font-size: 17px; font-weight: 700">What we're looking for</h2>
+<ul style="margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px">
+<li>5+ years managing brand social accounts, including 1+ year leading people</li>
+<li>Comfort shooting and editing short-form video</li>
+<li>A genuine interest in sports</li>
+</ul>
+<p style="margin: 0; font-size: 13px; color: #4F5B66">Sample posting text for the mockup.</p>
+</div>
+</div>
+</section>
+<div style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+<section aria-label="Notes" style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 700">Notes</h2>
+<label for="new-note" style="font-size: 14px; font-weight: 600">Add a note</label>
+<textarea id="new-note" rows="3" placeholder="For example: recruiter call, interview scheduled, salary discussed" style="border: 1px solid #C5CDD5; border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 14px; line-height: 1.5; color: #15202B; resize: vertical"></textarea>
+<div><button type="button" style="height: 44px; padding: 0 16px; border-radius: 8px; border: none; background: #0F6E63; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Save note</button></div>
+<div style="display: flex; flex-direction: column; gap: 4px; padding-top: 12px; border-top: 1px solid #E6EAEE">
+<span style="font-size: 13px; font-weight: 600; color: #4F5B66">Oct 1, 11:05 AM</span>
+<p style="margin: 0; font-size: 14px; line-height: 1.5">Recruiter call from [name], about 15 minutes. Asked about video editing. Second interview to be scheduled next week.</p>
+</div>
+</section>
+<section aria-label="Answers you gave" style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 700">Answers worth knowing before a call</h2>
+<div style="display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #E6EAEE; font-size: 14px"><span style="color: #4F5B66">Desired salary</span><span style="font-weight: 600; text-align: right">[what you entered]</span></div>
+<div style="display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #E6EAEE; font-size: 14px"><span style="color: #4F5B66">Earliest start</span><span style="font-weight: 600; text-align: right">Two weeks after an offer</span></div>
+<div style="display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #E6EAEE; font-size: 14px"><span style="color: #4F5B66">Willing to relocate</span><span style="font-weight: 600; text-align: right">Open to it</span></div>
+<div style="display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #E6EAEE; font-size: 14px"><span style="color: #4F5B66">Why Fieldhouse Media?</span><a href="#answer" style="font-weight: 600">Read your answer</a></div>
+</section>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1120}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

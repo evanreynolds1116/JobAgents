@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Review and approve</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap"/>
+<style>
+body{margin:0}
+a{color:#0F6E63}a:hover{color:#0B5249}
+</style>
+</helmet>
+<div style="display: flex; width: 100%; min-height: 1180px; background: #F3F5F7; color: #15202B; font-family: 'Public Sans', system-ui, sans-serif">
+<nav aria-label="Main navigation" style="width: 240px; flex-shrink: 0; background: #15202B; padding: 28px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px">
+<div style="color: #FFFFFF; font-weight: 700; font-size: 18px; padding: 0 12px 2px">Job Assistant</div>
+<div style="color: #A9B6C2; font-size: 13px; padding: 0 12px 20px">Runs on your computer</div>
+<a href="Main.dc.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #D6DEE6; text-decoration: none; font-size: 15px">Find jobs<span style="font-size: 12px; font-weight: 600; background: #0F6E63; color: #FFFFFF; border-radius: 10px; padding: 2px 8px">12 new</span></a>
+<a href="NewLetter.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #D6DEE6; text-decoration: none; font-size: 15px">New cover letter</a>
+<a href="Applications.dc.html" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-size: 15px; font-weight: 600; background: #2A3B4C">Applications<span style="font-size: 12px; color: #A9B6C2">5</span></a>
+<a href="Profile.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #D6DEE6; text-decoration: none; font-size: 15px">Profile &amp; resume</a>
+<div style="margin-top: auto; color: #A9B6C2; font-size: 13px; line-height: 1.5; padding: 0 12px">Nothing is sent or submitted without you.</div>
+</nav>
+<main style="flex-grow: 1; min-width: 0; padding: 40px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; max-width: 1240px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap">
+<div>
+<div style="font-size: 14px; color: #4F5B66"><a href="Applications.dc.html">Applications</a> › Summit City Hockey Club</div>
+<div style="display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap">
+<h1 style="margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.01em">Social Media Coordinator</h1>
+<sc-if value="{{ notApproved }}" hint-placeholder-val="{{ true }}">
+<span style="font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 6px; background: #FDF1E2; color: #8A4B08">Draft · version 2</span>
+</sc-if>
+<sc-if value="{{ approved }}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 6px; background: #E3F1EE; color: #0B4F47">Approved · version 2</span>
+</sc-if>
+</div>
+<p style="margin: 6px 0 0; color: #4F5B66; font-size: 15px">Summit City Hockey Club · Denver, CO · Hybrid · $60k–$75k (from the posting)</p>
+</div>
+<div style="display: flex; gap: 12px; align-items: center">
+<a href="#posting" style="display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; text-decoration: none; font-size: 15px; font-weight: 600">View posting</a>
+<sc-if value="{{ locked }}" hint-placeholder-val="{{ true }}">
+<button type="button" disabled="disabled" style="height: 44px; padding: 0 20px; border-radius: 8px; border: none; background: #C9D1D8; color: #3A4651; font: inherit; font-size: 15px; font-weight: 600; cursor: not-allowed">Approve letter</button>
+</sc-if>
+<sc-if value="{{ canApprove }}" hint-placeholder-val="{{ false }}">
+<button type="button" onClick="{{ approve }}" style="height: 44px; padding: 0 20px; border-radius: 8px; border: none; background: #0F6E63; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer">Approve letter</button>
+</sc-if>
+<sc-if value="{{ approved }}" hint-placeholder-val="{{ false }}">
+<a href="Apply.dc.html" style="display: inline-flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 8px; background: #0F6E63; color: #FFFFFF; text-decoration: none; font-size: 15px; font-weight: 600">Fill application</a>
+</sc-if>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start">
+<div style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+<div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #4F5B66">
+<span>Click into the letter to edit it directly. Bracketed text stands in for details from your resume.</span>
+<span style="font-family: 'IBM Plex Mono', monospace">214 words</span>
+</div>
+<article aria-label="Cover letter draft" style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 12px; padding: 48px 56px; font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.65; color: #15202B; display: flex; flex-direction: column; gap: 16px">
+<p style="margin: 0">Dear Hiring Manager,</p>
+<p style="margin: 0">Some of my best nights are spent at a rink, either in the stands or out on the ice with my own team, so the Social Media Coordinator opening at Summit City Hockey Club caught my eye right away.</p>
+<p style="margin: 0">In my current role as [your title] at [your company], I [a specific accomplishment from your resume]. That work taught me how to [a skill the posting asks for]. <mark style="background: #FBE9E7; color: #15202B; border-bottom: 2px solid #A3261C; padding: 0 2px">I grew our followers by 40% in six months</mark>, and I'd bring the same approach to game-day content for your fans.</p>
+<p style="margin: 0">Your posting mentions short-form video and live game coverage. [Your video or live-content experience.] <mark style="background: #FDF1E2; color: #15202B; border-bottom: 2px solid #B45309; padding: 0 2px">I know the rhythm of a hockey night — warmups, the first goal, the handshake line — and</mark> I'd like to build content around those moments.</p>
+<p style="margin: 0">I'd welcome the chance to talk about what I could bring to the club's channels this season.</p>
+<p style="margin: 0">Thanks for your time,<br/>[Your name]</p>
+</article>
+<div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
+<sc-if value="{{ notApproved }}" hint-placeholder-val="{{ true }}">
+<button type="button" disabled="disabled" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #D9DFE5; background: #EEF1F4; color: #3A4651; font: inherit; font-size: 14px; font-weight: 600; cursor: not-allowed">Export .docx</button>
+<button type="button" disabled="disabled" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #D9DFE5; background: #EEF1F4; color: #3A4651; font: inherit; font-size: 14px; font-weight: 600; cursor: not-allowed">Export PDF</button>
+<span style="font-size: 13px; color: #4F5B66">Export unlocks after you approve.</span>
+</sc-if>
+<sc-if value="{{ approved }}" hint-placeholder-val="{{ false }}">
+<button type="button" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Export .docx</button>
+<button type="button" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Export PDF</button>
+<span style="font-size: 13px; color: #4F5B66">Editing the letter now would return it to draft.</span>
+</sc-if>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+<section aria-label="Needs your review" style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 700">Needs your review (2)</h2>
+<div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid #E6EAEE">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #A3261C"><span style="width: 10px; height: 10px; border-radius: 5px; background: #A3261C"></span>Unsupported claim</div>
+<p style="margin: 0; font-size: 14px; line-height: 1.5">"I grew our followers by 40% in six months" isn't in your resume, profile or job notes.</p>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<button type="button" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Remove sentence</button>
+<button type="button" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">It's true: add to notes</button>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid #E6EAEE">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #8A4B08"><span style="width: 10px; height: 10px; border-radius: 5px; background: #B45309"></span>Style</div>
+<p style="margin: 0; font-size: 14px; line-height: 1.5">Two em dashes in one sentence. Your style rules allow one per letter.</p>
+<div><button type="button" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Rewrite this sentence</button></div>
+</div>
+<label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; min-height: 32px; cursor: pointer"><input type="checkbox" checked="{{ reviewed }}" onChange="{{ toggleReviewed }}" style="width: 20px; height: 20px; margin: 0"/>I've reviewed the flagged items</label>
+</section>
+<section aria-label="Requirement match" style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 700">How you match</h2>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 72px 64px; gap: 8px; padding: 10px 0; border-top: 1px solid #E6EAEE; font-size: 14px; align-items: center"><span>2+ years running brand social accounts</span><span style="font-size: 12px; font-weight: 600; padding: 3px 6px; border-radius: 6px; background: #E3F1EE; color: #0B4F47; text-align: center">Strong</span><span style="font-size: 12px; color: #4F5B66">Resume</span></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 72px 64px; gap: 8px; padding: 10px 0; border-top: 1px solid #E6EAEE; font-size: 14px; align-items: center"><span>Short-form video</span><span style="font-size: 12px; font-weight: 600; padding: 3px 6px; border-radius: 6px; background: #E3F1EE; color: #0B4F47; text-align: center">Strong</span><span style="font-size: 12px; color: #4F5B66">Resume</span></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 72px 64px; gap: 8px; padding: 10px 0; border-top: 1px solid #E6EAEE; font-size: 14px; align-items: center"><span>Passion for hockey</span><span style="font-size: 12px; font-weight: 600; padding: 3px 6px; border-radius: 6px; background: #E3F1EE; color: #0B4F47; text-align: center">Strong</span><span style="font-size: 12px; color: #4F5B66">Notes</span></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 72px 64px; gap: 8px; padding: 10px 0; border-top: 1px solid #E6EAEE; font-size: 14px; align-items: center"><span>Live game-day coverage</span><span style="font-size: 12px; font-weight: 600; padding: 3px 6px; border-radius: 6px; background: #E6EEF8; color: #1F4E8C; text-align: center">Partial</span><span style="font-size: 12px; color: #4F5B66">Resume</span></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 72px 64px; gap: 8px; padding: 10px 0; border-top: 1px solid #E6EAEE; font-size: 14px; align-items: center"><span>Adobe Premiere</span><span style="font-size: 12px; font-weight: 600; padding: 3px 6px; border-radius: 6px; background: #EEF1F4; color: #3A4651; text-align: center">None</span><span style="font-size: 12px; color: #4F5B66">Skipped</span></div>
+</section>
+<section aria-label="Ask for changes" style="background: #FFFFFF; border: 1px solid #D9DFE5; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<label for="feedback" style="font-size: 16px; font-weight: 700">Ask for changes</label>
+<textarea id="feedback" rows="3" placeholder="For example: more formal, or open with the video work" style="border: 1px solid #C5CDD5; border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 14px; line-height: 1.5; color: #15202B; resize: vertical"></textarea>
+<div><button type="button" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #C5CDD5; background: #FFFFFF; color: #15202B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Redraft</button></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid #E6EAEE; font-size: 13px">
+<div style="font-weight: 600; color: #4F5B66">Versions</div>
+<div style="display: flex; justify-content: space-between; gap: 8px"><span><strong>v2</strong> · "Shorter, lead with hockey"</span><span style="color: #4F5B66">10:46 AM</span></div>
+<div style="display: flex; justify-content: space-between; gap: 8px"><a href="#v1">v1 · First draft</a><span style="color: #4F5B66">10:42 AM</span></div>
+</div>
+</section>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1180}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { reviewed: false, approved: false };
+  }
+  renderVals() {
+    const s = this.state;
+    return {
+      reviewed: s.reviewed,
+      approved: s.approved,
+      notApproved: !s.approved,
+      canApprove: s.reviewed && !s.approved,
+      locked: !s.reviewed && !s.approved,
+      toggleReviewed: () => this.setState({ reviewed: !this.state.reviewed }),
+      approve: () => this.setState({ approved: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

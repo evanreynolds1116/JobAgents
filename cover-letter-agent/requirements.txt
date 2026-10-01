@@ -1,0 +1,4 @@
+# Milestone 1. Later milestones add anthropic, httpx, trafilatura, python-docx, etc.
+streamlit>=1.50,<2
+python-dotenv>=1.0
+pytest>=8
