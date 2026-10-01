@@ -91,7 +91,7 @@ def new_letter_page() -> None:
             "4. Rewrite stiff phrasing and check every claim against your resume and notes.\n"
             "5. You review, edit and approve."
         )
-        st.caption("Usually about a minute.")
+        st.caption("Usually one to two minutes.")
 
 
 def _status_messages() -> None:

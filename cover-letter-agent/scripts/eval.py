@@ -28,7 +28,7 @@ from storage import profile as profile_store  # noqa: E402
 from storage import resume  # noqa: E402
 
 POSTINGS = ROOT / "tests" / "fixtures" / "real"
-COST_PER_POSTING = 0.08  # rough, in US dollars, for five Opus calls
+COST_PER_POSTING = 0.10  # rough, in US dollars: five Opus calls, plus two more when claims need fixing
 
 MANUAL = [
     "Uses your job notes naturally (if any)",
@@ -53,11 +53,13 @@ def _same(found: str | None, expected: str | None) -> bool:
 
 
 def names_company(company: str | None, letter: str) -> bool:
-    """'Acme Corp' counts as named if the letter says 'Acme'."""
+    """'Acme Corp' counts as named if the letter says 'Acme'; 'Regal Cinemas' if it says 'Regal'."""
     if not company:
         return False
     short = re.sub(r"[,.]?\s+(inc|corp|corporation|co|company|llc|ltd|group)\.?$", "", company.strip(), flags=re.I)
-    return any(name.lower() in letter.lower() for name in (company, short))
+    first = company.split()[0]
+    names = [company, short] + ([first] if len(first) >= 4 else [])
+    return any(re.search(rf"\b{re.escape(name)}\b", letter, re.I) for name in names)
 
 
 def score(item: dict, parsed: dict, matches: dict, letter: str, checked: dict, length: str) -> dict:
@@ -99,9 +101,15 @@ def run_one(client, model: str, item: dict, resume_text: str, profile, settings)
     draft = timed("draft", pipeline.draft, client, model, parsed, matches, resume_text, notes, profile, settings)
     letter, changes = timed("humanize", pipeline.humanize, client, model, draft, profile, settings)
     checked = timed("verify", pipeline.verify, client, model, letter, resume_text, profile, notes, posting)
+    first_check, fixes = checked, []
+    if pipeline.flags(checked)["claims"]:  # same automatic fix-up the app runs
+        letter, fixes = timed("fix", pipeline.fix_claims, client, model, letter, checked, resume_text,
+                              profile, notes, posting)
+        checked = timed("verify_again", pipeline.verify, client, model, letter, resume_text, profile, notes,
+                        posting)
     return {"id": item["id"], "parsed": parsed, "matches": matches, "first_draft": draft, "letter": letter,
-            "humanize_changes": changes, "verify": checked, "seconds": times,
-            "score": score(item, parsed, matches, letter, checked, settings.length)}
+            "humanize_changes": changes, "first_verify": first_check, "fixes": fixes, "verify": checked,
+            "seconds": times, "score": score(item, parsed, matches, letter, checked, settings.length)}
 
 
 def _yes(value) -> str:
@@ -116,7 +124,8 @@ def write_report(out: Path, item_results: list[dict], manifest: dict, skipped: l
         "## Summary", "",
         f"- Postings run: {len(done)} (failed: {len(item_results) - len(done)}, skipped: {len(skipped)})",
         f"- Correct company and title: {correct} of {len(done)} (target: 9 of 10)",
-        f"- Letters with zero unsupported claims: {sum(r['score']['unsupported_claims'] == 0 for r in done)} of {len(done)}",
+        f"- Letters with zero unsupported claims: {sum(r['score']['unsupported_claims'] == 0 for r in done)} of {len(done)}"
+        f" (before the automatic fix-up: {sum(not pipeline.flags(r['first_verify'])['claims'] for r in done)})",
         f"- Letters with no banned phrases: {sum(r['score']['banned_phrases'] == 0 for r in done)} of {len(done)}",
         f"- Length within target: {sum(r['score']['length_ok'] for r in done)} of {len(done)}",
         f"- Average time per letter: {sum(sum(r['seconds'].values()) for r in done) / max(len(done), 1):.0f} seconds",
@@ -139,7 +148,7 @@ def write_report(out: Path, item_results: list[dict], manifest: dict, skipped: l
             f"{s['words']} words, {sum(r['seconds'].values()):.0f} seconds.", "",
             "| Check | Result |", "|---|---|",
             f"| Must-haves with evidence | {s['must_haves_with_evidence']} ({_yes(s['must_haves_ok'])}) |",
-            f"| Unsupported claims | {s['unsupported_claims']} |",
+            f"| Unsupported claims | {s['unsupported_claims']} (fix-up changes: {len(r['fixes'])}) |",
             f"| Banned phrases | {s['banned_phrases']} |",
             f"| Other style flags | {s['style_flags']} |",
             f"| Length within target | {_yes(s['length_ok'])} |",
@@ -192,7 +201,7 @@ def main(argv: list[str] | None = None, folder: Path = POSTINGS, out_root: Path 
         sys.exit("No posting text found. Save postings as tests/fixtures/real/NN.txt.")
 
     estimate = len(ready) * COST_PER_POSTING
-    print(f"{len(ready)} postings, five API calls each, roughly ${estimate:.2f} with {settings.model}.")
+    print(f"{len(ready)} postings, five to seven API calls each, roughly ${estimate:.2f} with {settings.model}.")
     if skipped:
         print("Skipping (no text yet): " + ", ".join(skipped))
     if not args.yes and input("Continue? [y/N] ").strip().lower() != "y":

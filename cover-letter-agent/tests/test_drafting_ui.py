@@ -36,7 +36,7 @@ CLAIMS = [
 
 class Calls:
     def __init__(self):
-        self.counts = {"fetch": 0, "parse": 0, "match": 0, "draft": 0, "humanize": 0, "verify": 0}
+        self.counts = {"fetch": 0, "parse": 0, "match": 0, "draft": 0, "humanize": 0, "verify": 0, "fix": 0}
         self.went = []
         self.parsed = dict(PARSED)
         self.fail_match = 0
@@ -97,6 +97,10 @@ def calls(app_paths, monkeypatch):
             raise pipeline.PipelineError("Claude took too long to respond.")
         return fake_verify_result(letter, notes)
 
+    def fake_fix(client, model, letter, checked, resume_text, profile, notes, posting_text):
+        c.counts["fix"] += 1
+        return letter.replace(f" {FALSE}", ""), [f"Removed: {FALSE}"]
+
     monkeypatch.setattr(fetch, "fetch", fake_fetch)
     monkeypatch.setattr(pipeline, "make_client", lambda key: object())
     monkeypatch.setattr(pipeline, "parse_job", fake_parse)
@@ -104,6 +108,7 @@ def calls(app_paths, monkeypatch):
     monkeypatch.setattr(pipeline, "draft", fake_draft)
     monkeypatch.setattr(pipeline, "humanize", fake_humanize)
     monkeypatch.setattr(pipeline, "verify", fake_verify)
+    monkeypatch.setattr(pipeline, "fix_claims", fake_fix)
     monkeypatch.setattr(nav, "go", lambda key, **params: c.went.append((key, params)))
     return c
 
@@ -152,9 +157,11 @@ def test_link_to_checked_draft(calls):
     assert app["user_notes"] == "I paddle the Harpeth most weekends."
     assert app["status"] == "draft" and app["match_json"] == MATCHES
     (draft,) = db.list_drafts(1)
-    assert draft["version"] == 1 and draft["text"] == LETTER and draft["resume_hash"] == resume.text_hash()
-    assert calls.counts["humanize"] == 1 and calls.counts["verify"] == 1
-    assert draft["verify_json"]["claims"][1]["supported"] is False
+    assert draft["version"] == 1 and draft["resume_hash"] == resume.text_hash()
+    # The unsupported claim was fixed automatically, then the letter was checked again.
+    assert FALSE not in draft["text"] and "run your newsletter" in draft["text"]
+    assert calls.counts["humanize"] == 1 and calls.counts["fix"] == 1 and calls.counts["verify"] == 2
+    assert pipeline.flag_count(draft["verify_json"]) == 0
 
 
 def test_check_failure_still_saves_the_draft(calls):
@@ -206,7 +213,7 @@ def test_same_url_offers_existing_application(calls):
     assert "You already have an application for Marketing Coordinator at Harpeth Outdoor Co." in markdown_text(at)
     click(at, "Draft a new version")
     assert [d["version"] for d in db.list_drafts(1)] == [2, 1]
-    assert calls.counts == {"fetch": 1, "parse": 1, "match": 2, "draft": 2, "humanize": 2, "verify": 2}
+    assert calls.counts == {"fetch": 1, "parse": 1, "match": 2, "draft": 2, "humanize": 2, "verify": 4, "fix": 2}
 
 
 def test_unclear_title_is_confirmed_first(calls):
@@ -323,7 +330,8 @@ def test_editing_after_approval_returns_to_draft(calls):
     latest = db.latest_draft(app_id)
     assert latest["version"] == 2 and latest["feedback"] == "Edited by hand"
     assert latest["text"].endswith("Jordan A.")
-    assert calls.counts["humanize"] == 0 and calls.counts["verify"] == 1  # your words kept, but checked
+    assert calls.counts["humanize"] == 0 and calls.counts["fix"] == 0  # your words kept word for word
+    assert calls.counts["verify"] == 1  # but still checked
 
 
 def test_ask_for_changes_saves_a_new_version(calls):
@@ -399,3 +407,21 @@ def test_remove_sentence_keeps_the_rest():
     text = "Dear Priya,\n\nFirst sentence. Remove me now. Last one!\n\nThanks,\nJordan"
     assert remove_sentence(text, "Remove me now.") == "Dear Priya,\n\nFirst sentence. Last one!\n\nThanks,\nJordan"
     assert remove_sentence(text, "not there") == text
+
+
+def test_fix_up_runs_only_when_claims_are_flagged(calls, monkeypatch):
+    clean = LETTER.replace(f" {FALSE}", "")
+    monkeypatch.setattr(pipeline, "draft", lambda *a, **k: clean)
+    at = open_new_letter()
+    at.text_input(key="nl_url").input("https://harpeth.example/careers/marketing")
+    click(at, "Generate draft")
+    assert calls.counts["fix"] == 0 and calls.counts["verify"] == 1
+
+
+def test_claims_still_unsupported_after_fix_stay_flagged(calls, monkeypatch):
+    monkeypatch.setattr(pipeline, "fix_claims", lambda *a: (a[2], ["Couldn't fix"]))  # fix-up changes nothing
+    at = open_new_letter()
+    at.text_input(key="nl_url").input("https://harpeth.example/careers/marketing")
+    click(at, "Generate draft")
+    (draft,) = db.list_drafts(1)
+    assert FALSE in draft["text"] and pipeline.flag_count(draft["verify_json"]) == 1

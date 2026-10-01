@@ -20,7 +20,8 @@ PROMPTS = Path(__file__).resolve().parent / "prompts"
 # fallback model inside the same call (Claude API only).
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_TOKENS = 16_000
-EFFORT = {"parse": "low", "match": "low", "draft": "medium", "humanize": "low", "verify": "medium"}
+EFFORT = {"parse": "low", "match": "low", "draft": "medium", "humanize": "low", "verify": "medium",
+          "fix": "low"}
 
 
 class PipelineError(Exception):
@@ -188,6 +189,11 @@ def _call(client, model: str, step: str, prompt: str, user: str, schema: dict) -
     except anthropic.RateLimitError as exc:
         raise PipelineError("Claude is rate-limiting requests right now. Wait a minute and try again.") from exc
     except anthropic.BadRequestError as exc:
+        if "credit balance" in str(exc.message).lower():
+            raise PipelineError(
+                "Your Anthropic account is out of API credits. Add credits at "
+                "console.anthropic.com under Settings → Billing, then try again."
+            ) from exc
         raise PipelineError(f"Claude couldn't process the request: {exc.message}") from exc
     except anthropic.APIStatusError as exc:
         raise PipelineError(f"Claude had a server problem (HTTP {exc.status_code}) after several tries. Try again shortly.") from exc
@@ -420,6 +426,32 @@ def check_claims(result: dict, letter: str, sources: dict[str, str]) -> dict:
         f["in_letter"] = _norm(f["text"]) in letter_norm
     result["lint"] = [h.to_dict() for h in lint.lint(letter)]
     return result
+
+
+# --- Fix-up pass (after step 5) ----------------------------------------------------
+
+FIX_SCHEMA = HUMANIZE_SCHEMA  # {"letter": ..., "changes": [...]}
+
+
+def fix_claims(client, model: str, letter: str, verify_result: dict, resume_text: str, profile,
+               notes: str, posting_text: str) -> tuple[str, list[str]]:
+    """Rewrite or remove the claims verify flagged, changing nothing else. Run once, then
+    verify again; anything still unsupported stays flagged for you."""
+    unsupported = flags(verify_result)["claims"]
+    if not unsupported:
+        return letter, []
+    listed = "\n".join(f'- "{c["claim"]}"\n  Why: {c["reason"] or "No source supports it."}' for c in unsupported)
+    user = "\n\n".join([
+        f"<letter>\n{letter}\n</letter>",
+        f"<flagged_claims>\n{listed}\n</flagged_claims>",
+        f"<resume>\n{resume_text}\n</resume>",
+        f"<profile>\n{profile_text(profile)}\n</profile>",
+        f"<notes>\n{notes.strip() or '(none)'}\n</notes>",
+        _posting_block(posting_text),
+    ])
+    result = _call_json(client, model, "fix", load_prompt("fix_claims"), user, FIX_SCHEMA)
+    fixed = result["letter"].strip()
+    return (fixed or letter), result["changes"]
 
 
 def flags(verify_result: dict | None) -> dict:

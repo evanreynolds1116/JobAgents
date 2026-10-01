@@ -24,13 +24,20 @@ def finish(app_id: int, letter: str, settings: pipeline.DraftSettings, feedback:
     app = db.get_application(app_id)
     profile = profile_store.load()
     resume_text = resume.load_text()
+    notes = app.get("user_notes") or ""
     try:
         if smooth:
             say("Smoothing the wording…")
             letter, _ = pipeline.humanize(client, model, letter, profile, settings)
         say("Checking every claim against your resume and notes…")
-        checked = pipeline.verify(client, model, letter, resume_text, profile,
-                                  app.get("user_notes") or "", app["posting_text"])
+        checked = pipeline.verify(client, model, letter, resume_text, profile, notes, app["posting_text"])
+        # Generated text gets one automatic fix-up for unsupported claims; your own edits don't.
+        if smooth and pipeline.flags(checked)["claims"]:
+            say("Fixing claims your sources don't support…")
+            letter, _ = pipeline.fix_claims(client, model, letter, checked, resume_text, profile, notes,
+                                            app["posting_text"])
+            say("Checking again…")
+            checked = pipeline.verify(client, model, letter, resume_text, profile, notes, app["posting_text"])
     except pipeline.PipelineError:
         db.save_version(app_id, letter, resume.text_hash(resume_text), feedback=feedback)
         raise

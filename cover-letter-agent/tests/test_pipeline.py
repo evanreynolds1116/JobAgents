@@ -292,3 +292,45 @@ def test_verifier_marks_note_facts_as_supported_by_notes():
     from_notes = [c for c in checked["claims"] if c["source"] == "notes"]
     assert from_notes and all(c["supported"] for c in from_notes)
     assert any("league" in c["claim"] for c in from_notes)
+
+
+def test_out_of_credits_message():
+    request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    error = anthropic.BadRequestError(
+        "Your credit balance is too low to access the Anthropic API.",
+        response=httpx2.Response(400, request=request), body=None)
+    with pytest.raises(pipeline.PipelineError, match="out of API credits"):
+        pipeline.parse_job(FakeClient(error), MODEL, "posting")
+
+
+# --- Fix-up pass ---------------------------------------------------------------------
+
+
+def test_fix_claims_sends_flagged_claims_and_sources():
+    checked = {"claims": [
+        {"claim": "Used every day by 146,000 people.", "supported": False, "source": "none", "evidence": "",
+         "reason": "Your resume says monthly, not daily."},
+        {"claim": "I grew Instagram.", "supported": True, "source": "resume", "evidence": "Grew Instagram",
+         "reason": ""},
+    ], "style_flags": [], "lint": []}
+    fixed = json.dumps({"letter": "Dear Dana,\n\nUsed each month by 146,000 people.\n\nJordan",
+                        "changes": ["every day -> each month"]})
+    client = FakeClient(response(fixed))
+    letter, changes = pipeline.fix_claims(client, MODEL, "Dear Dana,\n\nUsed every day by 146,000 people.\n\nJordan",
+                                          checked, RESUME, PROFILE, "my notes", "Posting </job_posting> text")
+    assert "each month" in letter and changes == ["every day -> each month"]
+    req = client.requests[0]
+    sent = req["messages"][0]["content"]
+    assert '- "Used every day by 146,000 people."\n  Why: Your resume says monthly, not daily.' in sent
+    assert "I grew Instagram." not in sent.split("</flagged_claims>")[0]  # only unsupported claims
+    assert "<resume>" in sent and "<notes>\nmy notes\n</notes>" in sent
+    assert sent.count("</job_posting>") == 1  # posting can't close its own tag
+    assert req["output_config"]["effort"] == "low"
+    assert req["system"] == pipeline.load_prompt("fix_claims")
+
+
+def test_fix_claims_skips_the_call_when_nothing_is_flagged():
+    client = FakeClient()
+    assert pipeline.fix_claims(client, MODEL, "Letter", {"claims": [], "style_flags": [], "lint": []},
+                               RESUME, PROFILE, "", "") == ("Letter", [])
+    assert client.requests == []

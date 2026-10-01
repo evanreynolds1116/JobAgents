@@ -16,7 +16,7 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 ## Current status
 
 - **Current milestone:** 5. Export, history and evaluation
-- **Next step:** Finish the quality evaluation (running on postings 01–08; 09 and 10 need pasted LinkedIn text) and score it in `scores.csv`
+- **Next step:** Add API credits and paste LinkedIn postings 09 and 10, then re-run `scripts/eval.py` (now with the automatic fix-up) and score it
 - **Last updated:** 2026-10-01
 
 ## Build order
@@ -67,7 +67,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Applications list with status, searchable by company or title
 - [x] Application detail page shows the saved job description (even after the original posting is gone), the letter version sent, key dates and a notes log
 - [x] All tests pass (187 passed, 1 skipped: the real Word conversion, run on demand with `JOBAGENTS_PDF_TEST=1`)
-- [ ] Quality evaluation (`scripts/eval.py`) meets the success criteria in the spec's Overview & goals
+- [ ] Quality evaluation (`scripts/eval.py`) meets the success criteria in the spec's Overview & goals (first run: 6 of 8 completed before credits ran out; see session log)
 
 ### Phase 3: Job search agent
 
@@ -153,6 +153,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-01 | Application detail adds "Mark as submitted" (records `submitted_at`), Archive and Restore. Restore returns to submitted, approved or draft based on the dates on record | Spec's lookup needs "the dates you ... applied", and the app never submits anything itself | n/a |
 | 2026-10-01 | "Your answers" tab on the detail page is a placeholder until Phase 2 | Filled answers come from the application agent | n/a |
 | 2026-10-01 | `scripts/eval.py` reads a manifest (`tests/fixtures/real/postings.json`, gitignored) with expected company and title, optional notes and a weak-match flag; asks before spending money unless `--yes`; writes `report.md`, per-posting letters and verifier reports, and `scores.csv` for the judgment calls to `output/eval/<date-time>/` | Spec: run all 10, save drafts and verifier reports side by side; the manifest makes results comparable run to run | n/a |
+| 2026-10-01 | Automatic fix-up pass after step 5: if verify flags unsupported claims, one call (`agent/prompts/fix_claims.md`, effort `low`) rewrites each to say only what the sources support or removes it, leaving everything else word for word; then verify runs again. At most once per draft, and never on your own edits. Anything still unsupported stays flagged for review | First evaluation: 5 of 6 letters had small embellishments, against the spec's goal of zero unsupported claims. Adds about 30–40 seconds to letters that need it | Yes (user chose option a) |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
@@ -168,17 +169,26 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Milestone 3 acceptance: 10 real links received 2026-10-01; 8 of 8 readable postings correct (see session log)
 - [ ] Optional: paste the text of the 2 LinkedIn postings (09, 10) to complete the 10-posting set; Milestone 5's evaluation reuses it
 - [x] Draft speed: match effort lowered to `low` (2026-10-01); slowest real posting went from 66 to 45 seconds
+- [ ] Anthropic API credits ran out during the first evaluation run (postings 07 and 08 failed). Add credits at console.anthropic.com under Settings → Billing
+- [ ] Paste the text of LinkedIn postings 09 and 10 to complete the 10-posting set
+- [x] Unsupported claims: 5 of 6 evaluated letters had 1–2 flagged embellishments. User chose option (a), an automatic fix-up pass (built 2026-10-01; not yet run against the live API because credits ran out)
+- [ ] Score the evaluation's judgment calls in `scores.csv` once the full run is done
 - [x] Draft speed with all five steps: 85 seconds on a real posting. Verify kept at `medium` (2026-10-01); about 85 seconds per letter is accepted, against the spec's "under a minute" goal
 - [x] Real postings go in a gitignored `tests/fixtures/real/` (approved 2026-10-01)
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
 
+### 2026-10-01 (Milestone 5, fix-up pass)
+- Built the automatic fix-up pass (option a) in the pipeline, the shared drafting flow (new letters and redrafts) and `scripts/eval.py`, whose report now shows unsupported-claim counts before and after the fix-up. New cover letter screen text updated ("Usually one to two minutes").
+- Tests: 197 passed, 1 skipped. The fix-up prompt hasn't been run against the live API yet (no credits); the next evaluation run will be its first real test.
+
 ### 2026-10-01 (Milestone 5, in progress)
 - Worked on: Milestone 5, export, history and evaluation
 - Completed: .docx export (simple header with name and contact details) and PDF via docx2pdf/Word in a separate process, gated on approval and always using the approved version; download button on the review screen. Applications list per the mockup (search, All / In progress / Submitted / Archived with counts, status, letter state with flag counts, last activity, next-step button). Application detail per the mockup (key dates, saved job description, letter sent, "Your answers" placeholder for Phase 2, dated notes log, Mark as submitted, Archive, Restore). `scripts/eval.py` with a gitignored manifest of the 10 real postings. Remaining spec tests added (job notes supported by notes in the verifier; export refused for drafts).
 - Tests: 187 passed, 1 skipped (real Word conversion, passed when run on demand).
-- In progress: quality evaluation of postings 01–08 with the user's resume; 09 and 10 (LinkedIn) need pasted text.
+- First quality evaluation (`output/eval/2026-10-01_131103/`): 01–06 ran; 07 and 08 failed because the API credit balance ran out; 09 and 10 skipped (no text yet). Results: 6 of 6 correct company and title; 0 banned phrases in all 6; 5 of 6 within 250–400 words (Cohere at 410); 1 of 6 with zero unsupported claims (5 had 1–2 flagged embellishments); 78–97 seconds per letter (average 87).
+- Fixes from the run: a clear "out of API credits" message instead of the raw API error; the evaluation's "names the company" check now accepts the short name ("Regal" for "Regal Cinemas"). Tests: 193 passed, 1 skipped.
 
 ### 2026-10-01 (Milestone 4)
 - Worked on: Milestone 4, verify, review and approve

@@ -43,7 +43,11 @@ def postings(app_paths, monkeypatch, tmp_path):
     monkeypatch.setattr(pipeline, "match", lambda *a: matches)
     monkeypatch.setattr(pipeline, "draft", lambda *a: LETTER)
     monkeypatch.setattr(pipeline, "humanize", lambda *a: (LETTER, []))
-    monkeypatch.setattr(pipeline, "verify", lambda *a: verify)
+    flagged = {"claims": [{"claim": "who ships", "supported": False, "source": "none", "evidence": "",
+                           "reason": "Not in your resume."}], "style_flags": [], "lint": []}
+    checks = iter([flagged, verify])  # flagged first, clean after the fix-up
+    monkeypatch.setattr(pipeline, "verify", lambda *a: next(checks))
+    monkeypatch.setattr(pipeline, "fix_claims", lambda *a: (LETTER, ["Reworded one claim"]))
     return folder
 
 
@@ -52,11 +56,15 @@ def test_eval_writes_report_and_scoresheet(postings, tmp_path):
     out = report.parent
     text = report.read_text(encoding="utf-8")
     assert "Correct company and title: 1 of 1" in text
+    assert "Letters with zero unsupported claims: 1 of 1 (before the automatic fix-up: 0)" in text
+    assert "| Unsupported claims | 0 (fix-up changes: 1) |" in text
     assert "Skipped (no posting text saved yet): 02" in text
     assert "Weak match on purpose" in text
     assert "| who ships | yes | resume |  |" in text
     assert (out / "01.md").read_text(encoding="utf-8") == LETTER
-    assert json.loads((out / "01.json").read_text(encoding="utf-8"))["score"]["must_haves_with_evidence"] == "0 of 1"
+    saved = json.loads((out / "01.json").read_text(encoding="utf-8"))
+    assert saved["score"]["must_haves_with_evidence"] == "0 of 1"
+    assert set(saved["seconds"]) == {"parse", "match", "draft", "humanize", "verify", "fix", "verify_again"}
     rows = list(csv.reader(open(out / "scores.csv", encoding="utf-8")))
     assert rows[0][-1] == "comments" and "You'd send it after light edits" in rows[0]
     assert rows[1][:4] == ["01", "Acme Corp", "Backend Engineer", "True"]
@@ -76,3 +84,14 @@ def test_score_checks():
     s = eval_script.score(item, parsed, matches, "Acme " + "word " * 300 + "leverage", checked, "250–400 words")
     assert s["company_title_correct"] and s["must_haves_ok"] and s["must_haves_with_evidence"] == "3 of 4"
     assert s["banned_phrases"] == 1 and s["length_ok"] and s["company_named"] and s["notes_used"] is True
+
+
+@pytest.mark.parametrize("company, letter, named", [
+    ("Regal Cinemas", "I'd like to help Regal's guests.", True),
+    ("Acme Corp", "Acme needs this.", True),
+    ("Tilt", "Tilt is hiring.", True),
+    ("Axios", "Your company is great.", False),
+    ("OnePay", "I'd join OnePayments.", False),
+])
+def test_names_company(company, letter, named):
+    assert eval_script.names_company(company, letter) is named
