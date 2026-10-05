@@ -1,7 +1,7 @@
-"""Find jobs screen: saved searches, run now, and the results table (Milestone 10).
+"""Find jobs screen: saved searches, run now, and the shortlist sorted by fit, then date
+(Milestones 10 and 11).
 
-Fit scores and sorting come in Milestone 11; Start letter, the schedule and the
-company watch list in Milestone 12.
+Start letter, the schedule and the company watch list come in Milestone 12.
 """
 
 from datetime import datetime
@@ -25,6 +25,14 @@ def posted_label(stamp: str | None, now: datetime | None = None) -> str:
         return "Date not given"
     days = ((now or datetime.now()).date() - datetime.fromisoformat(stamp).date()).days
     return "Today" if days <= 0 else ("1 day ago" if days == 1 else f"{days} days ago")
+
+
+def fit_badge(fit: int | None) -> str:
+    """The 1-5 square from the mockup; a dash when Claude didn't score the job."""
+    if not fit:
+        return '<span class="ja-fit ja-fit-none" aria-label="Not scored" title="Not scored">–</span>'
+    level = "high" if fit >= 4 else ("mid" if fit == 3 else "low")
+    return f'<span class="ja-fit ja-fit-{level}" aria-label="Fit {fit} of 5">{fit}</span>'
 
 
 def last_run_label(stamp: str | None) -> str:
@@ -84,7 +92,7 @@ def _messages() -> None:
 
 def _run(searches: list[dict]) -> None:
     try:
-        with st.spinner(f"Searching Adzuna ({run.planned_calls(searches)} calls)…"):
+        with st.spinner(f"Searching Adzuna ({run.planned_calls(searches)} calls) and scoring new jobs…"):
             result = run.run_searches(searches)
     except (run.UsageLimit, adzuna.AdzunaError) as exc:
         st.session_state.fj_flash = ("error", str(exc))
@@ -178,19 +186,21 @@ def _results() -> None:
     jobs = store.list_jobs(tab or "new", hide_no_salary=hide)
 
     with st.container(border=True, key="card_job_list"):
-        widths = [3.2, 2, 1.5, 1.3, 2]
-        for col, label in zip(st.columns(widths), ["Role", "Location", "Salary", "Posted", ""]):
+        widths = [0.6, 3.2, 2, 1.5, 1.3, 2]
+        for col, label in zip(st.columns(widths), ["Fit", "Role", "Location", "Salary", "Posted", ""]):
             col.caption(label)
         if not jobs:
             st.caption("Nothing here yet." if (tab or "new") != "new" else
                        "No new postings. Run the search to look for more.")
         for job in jobs:
-            role, where, pay, when, actions = st.columns(widths, vertical_alignment="center")
+            fit, role, where, pay, when, actions = st.columns(widths, vertical_alignment="center")
+            fit.markdown(fit_badge(job["fit"]), unsafe_allow_html=True)
             title = escape(job["title"] or "Untitled")
             if job["apply_url"]:
                 title = f'<a href="{escape(job["apply_url"])}" target="_blank">{title}</a>'
+            reason = f'  \n<span class="ja-muted">{escape(job["fit_reason"])}</span>' if job["fit_reason"] else ""
             role.markdown(f"**{title}**  \n"
-                          f'<span class="ja-muted">{escape(job["company"] or "")} · via Adzuna</span>',
+                          f'<span class="ja-muted">{escape(job["company"] or "")} · via Adzuna</span>{reason}',
                           unsafe_allow_html=True)
             setting = "Unknown: check posting" if job["work_setting"] == "unknown" else SETTING_LABELS[job["work_setting"]]
             where.markdown(f"{escape(job['location'] or 'Remote (US)')}  \n"

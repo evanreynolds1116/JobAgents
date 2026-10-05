@@ -73,6 +73,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     posted_at         TEXT,
     apply_url         TEXT,
     description       TEXT,
+    fit               INTEGER CHECK (fit BETWEEN 1 AND 5),  -- Claude's 1-5 score; NULL if not scored
+    fit_reason        TEXT,
     status            TEXT NOT NULL DEFAULT 'new'
                       CHECK (status IN ('new', 'saved', 'dismissed', 'applying')),
     first_seen_at     TEXT NOT NULL,
@@ -103,7 +105,23 @@ def init_db(db_path: Path | None = None) -> None:
     """Create the tables if they don't exist. Safe to call on every start-up."""
     with connect(db_path) as conn:
         conn.executescript(SCHEMA)
+        _add_columns(conn)
     conn.close()
+
+
+# Columns added after a table was first created: (table, column, definition).
+ADDED_COLUMNS = [
+    ("jobs", "fit", "INTEGER CHECK (fit BETWEEN 1 AND 5)"),
+    ("jobs", "fit_reason", "TEXT"),
+]
+
+
+def _add_columns(conn: sqlite3.Connection) -> None:
+    """Bring an older database up to date; CREATE TABLE IF NOT EXISTS skips existing tables."""
+    for table, column, definition in ADDED_COLUMNS:
+        have = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 # --- Applications ----------------------------------------------------------

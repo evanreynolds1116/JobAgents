@@ -1,8 +1,9 @@
-"""Run saved searches (spec: How a search run works, steps 1 to 5).
+"""Run saved searches (spec: How a search run works, steps 1 to 6).
 
 Builds the queries, checks the Adzuna allowance first, calls Adzuna, normalizes each
-result, applies the date, salary, exclusion and location rules, and stores new jobs.
-Fit scoring (step 6) comes in Milestone 11.
+result and applies the date, salary and exclusion rules. Postings the app hasn't seen
+before are then labeled and scored by Claude (search/score.py), the work-setting and
+location rules run on Claude's labels, and the new jobs are stored with their fit.
 """
 
 from collections import Counter
@@ -10,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 import config
-from search import adzuna, places
+from search import adzuna, places, score
 from search.criteria import SearchCriteria
 from search.normalize import Job, salary_outside
 from storage import jobs as store
@@ -31,13 +32,17 @@ class RunResult:
     duplicates: int = 0
     dropped: Counter = field(default_factory=Counter)
     errors: list[str] = field(default_factory=list)
+    scored: int = 0
     finished_at: str = ""
 
     def summary(self) -> str:
         parts = [f"{self.new} new job{'s' if self.new != 1 else ''}",
                  f"{self.fetched} found", f"{self.duplicates} already seen"]
         parts += [f"{n} {reason}" for reason, n in self.dropped.most_common()]
-        return f"{self.calls} Adzuna call{'s' if self.calls != 1 else ''}: " + ", ".join(parts) + "."
+        text = f"{self.calls} Adzuna call{'s' if self.calls != 1 else ''}: " + ", ".join(parts) + "."
+        if self.scored:
+            text += f" Claude checked {self.scored} posting{'s' if self.scored != 1 else ''}."
+        return text
 
 
 def planned_calls(searches: list[dict]) -> int:
@@ -56,6 +61,11 @@ def check_allowance(calls: int) -> None:
 
 def keep(job: Job, query: adzuna.Query, criteria: SearchCriteria, now: datetime) -> str | None:
     """None to keep the job, otherwise the reason it was dropped."""
+    return prefilter(job, criteria, now) or setting_rule(job, query, criteria)
+
+
+def prefilter(job: Job, criteria: SearchCriteria, now: datetime) -> str | None:
+    """The rules that don't need the work setting, checked before anything is sent to Claude."""
     if job.posted_at and datetime.fromisoformat(job.posted_at) < now - timedelta(days=criteria.max_days_old):
         return "older than your date range"
     text = f"{job.title} {job.description}".lower()
@@ -66,6 +76,11 @@ def keep(job: Job, query: adzuna.Query, criteria: SearchCriteria, now: datetime)
         return "with excluded keywords"
     if salary_outside(job, criteria.salary_min, criteria.salary_max):
         return "outside your salary range"
+    return None
+
+
+def setting_rule(job: Job, query: adzuna.Query, criteria: SearchCriteria) -> str | None:
+    """Work-setting and location rules, run on Claude's label when there is one."""
     if query.kind == "remote":
         # The nationwide query can return jobs anywhere; only remote ones are kept.
         if job.work_setting != "remote":
@@ -88,15 +103,28 @@ def outside_radius(job: Job, query: adzuna.Query) -> bool:
     return bool(center and query.radius_miles) and places.miles_between(center, spot) > query.radius_miles
 
 
-def run_searches(searches: list[dict], client=None, now: datetime | None = None) -> RunResult:
+@dataclass
+class Candidate:
+    """A posting seen in this run, with each search and query that found it and passed its
+    date, salary and exclusion rules."""
+    job: Job
+    contexts: list[tuple[adzuna.Query, SearchCriteria, int]] = field(default_factory=list)
+    first_drop: str | None = None
+
+
+def run_searches(searches: list[dict], client=None, now: datetime | None = None, scorer=None) -> RunResult:
     settings = config.load_settings()
     if settings.adzuna_status != "ok":
         raise adzuna.AdzunaError("Add ADZUNA_APP_ID and ADZUNA_APP_KEY to .env first.")
     check_allowance(planned_calls(searches))
+    scorer = scorer or score.score_jobs
     now = now or datetime.now()
     stamp = now.isoformat(timespec="seconds")
     result = RunResult()
-    seen_this_run: set[str] = set()
+
+    # 1-5: collect each posting once, with every search and query that found it.
+    candidates: list[Candidate] = []
+    index: dict[str, Candidate] = {}
     for saved in searches:
         criteria = saved["criteria"]
         for query in adzuna.build_queries(criteria):
@@ -110,17 +138,48 @@ def run_searches(searches: list[dict], client=None, now: datetime | None = None)
             for ad in ads:
                 job = adzuna.to_job(ad)
                 result.fetched += 1
-                if reason := keep(job, query, criteria, now):
-                    result.dropped[reason] += 1
-                    continue
-                if job.dedupe_key in seen_this_run:
-                    result.duplicates += 1
-                    continue
-                seen_this_run.add(job.dedupe_key)
-                if store.upsert(job, saved["id"], stamp):
-                    result.new += 1
+                keys = [f"{job.source}:{job.source_id}" if job.source_id else "", job.dedupe_key]
+                cand = next((index[k] for k in keys if k and k in index), None)
+                if cand:
+                    result.duplicates += 1  # the same posting from another query
                 else:
-                    result.duplicates += 1
+                    cand = Candidate(job)
+                    candidates.append(cand)
+                    index.update({k: cand for k in keys if k})
+                if reason := prefilter(cand.job, criteria, now):
+                    cand.first_drop = cand.first_drop or reason
+                else:
+                    cand.contexts.append((query, criteria, saved["id"]))
+
+    to_score = []
+    for cand in candidates:
+        if not cand.contexts:
+            result.dropped[cand.first_drop] += 1
+        elif job_id := store.known(cand.job):
+            store.touch(job_id, stamp)  # already in the app: just note it was seen again
+            result.duplicates += 1
+        else:
+            to_score.append(cand)
+
+    # 6: Claude labels the work setting and scores fit, for new postings only.
+    scores, errors = scorer([c.job for c in to_score])
+    result.errors += errors
+    result.scored = sum(1 for s in scores if s)
+    for cand, s in zip(to_score, scores):
+        job = cand.job
+        if s:
+            job.work_setting, job.fit, job.fit_reason = s.work_setting, s.fit, s.reason
+        reasons = [setting_rule(job, query, criteria) for query, criteria, _ in cand.contexts]
+        if None not in reasons:
+            result.dropped[reasons[0]] += 1
+            continue
+        search_id = cand.contexts[reasons.index(None)][2]
+        if store.upsert(job, search_id, stamp):
+            result.new += 1
+        else:
+            result.duplicates += 1
+
+    for saved in searches:
         store.mark_run(saved["id"], stamp)
     result.finished_at = stamp
     return result

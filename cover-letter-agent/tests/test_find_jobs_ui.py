@@ -11,7 +11,7 @@ from search.criteria import City, SearchCriteria
 from search.normalize import Job
 from storage import db
 from storage import jobs as store
-from ui.find_jobs import posted_label
+from ui.find_jobs import fit_badge, posted_label
 
 SCRIPT = "from ui import find_jobs\nfind_jobs.find_jobs_page()\n"
 
@@ -39,10 +39,11 @@ def text(at) -> str:
     return "\n".join(m.value for m in at.markdown)
 
 
-def add_job(source_id, title, company, setting="hybrid", salary=(None, None), estimated=False, days_old=0):
+def add_job(source_id, title, company, setting="hybrid", salary=(None, None), estimated=False, days_old=0,
+            fit=None, reason=""):
     posted = (datetime.now() - timedelta(days=days_old)).isoformat(timespec="seconds")
     job = Job("adzuna", source_id, title, company, "Nashville, Davidson County", setting, salary[0], salary[1],
-              estimated, posted, f"https://www.adzuna.com/land/ad/{source_id}", "")
+              estimated, posted, f"https://www.adzuna.com/land/ad/{source_id}", "", fit=fit, fit_reason=reason)
     store.upsert(job, None, datetime.now().isoformat(timespec="seconds"))
 
 
@@ -161,3 +162,21 @@ def test_last_run_label():
     assert last_run_label(None) == "never"
     assert last_run_label(now.replace(hour=7, minute=52).isoformat()) == "today at 7:52 AM"
     assert last_run_label((now - timedelta(days=1)).isoformat()) == "yesterday"
+
+
+def test_shortlist_sorted_by_fit_with_reasons(keys):
+    save_search()
+    add_job("1", "Software Engineer", "Acme Health", fit=3, reason="Related work")
+    add_job("2", "Backend Engineer", "Tilt", fit=5, reason="Python APIs match", days_old=2)
+    add_job("3", "Platform Engineer", "Mystery Co")  # not scored
+    add_job("4", "Data Engineer", "Oracle", fit=3, reason="Asks for Spark", days_old=1)
+    page = text(open_page())
+    order = [page.index(name) for name in ("Tilt", "Acme Health", "Oracle", "Mystery Co")]
+    assert order == sorted(order)  # best fit first, then newest; unscored last
+    assert 'aria-label="Fit 5 of 5">5</span>' in page and "Python APIs match" in page
+    assert 'aria-label="Not scored"' in page
+
+
+def test_fit_badge_levels():
+    assert "ja-fit-high" in fit_badge(4) and "ja-fit-mid" in fit_badge(3) and "ja-fit-low" in fit_badge(1)
+    assert "–" in fit_badge(None)

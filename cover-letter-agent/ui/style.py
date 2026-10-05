@@ -37,6 +37,10 @@ mark.ja-flag-style { background: #FDF1E2; border-bottom: 2px solid #8A4B08; }
 .ja-strong { background: #E3F1EE; color: #0B4F47; }
 .ja-partial { background: #FDF1E2; color: #8A4B08; }
 .ja-none { background: #FBE9E7; color: #A3261C; }
+.ja-fit { display: inline-flex; width: 40px; height: 40px; border-radius: 8px; align-items: center;
+  justify-content: center; font-weight: 700; font-size: 17px; background: #EEF1F4; color: #15202B; }
+.ja-fit-high { background: #E3F1EE; color: #0F6E63; }
+.ja-fit-low, .ja-fit-none { color: #4F5B66; }
 </style>
 """
 

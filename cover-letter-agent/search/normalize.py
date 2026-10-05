@@ -23,6 +23,8 @@ class Job:
     apply_url: str
     description: str
     extra: dict = field(default_factory=dict)
+    fit: int | None = None       # 1 to 5 from Claude (Milestone 11); None if not scored
+    fit_reason: str = ""
 
     @property
     def dedupe_key(self) -> str:

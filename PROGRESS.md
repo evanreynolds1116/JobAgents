@@ -16,7 +16,7 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 ## Current status
 
 - **Current milestone:** 11. Filtering and fit scoring (5 is waiting on your scores)
-- **Next step:** Start Milestone 11; separately, score the Milestone 5 evaluation (both `scores.csv` files)
+- **Next step:** Label the 20 postings in `output/job_labels/2026-10-05_120937/labels.csv`, then run `scripts/label_jobs.py --check` on it for the Milestone 11 check; separately, score the Milestone 5 evaluation (the three `scores.csv` files)
 - **Last updated:** 2026-10-05
 
 ## Build order
@@ -31,7 +31,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 4 | Verify, review and approve | 1. Cover letter | Done |
 | 5 | Export, history and evaluation | 1. Cover letter | In progress (awaiting the quality evaluation) |
 | 10 | Saved searches and Adzuna | 3. Job search | Done (2026-10-05) |
-| 11 | Filtering and fit scoring | 3. Job search | Not started |
+| 11 | Filtering and fit scoring | 3. Job search | In progress (live run done; waiting on your labels) |
 | 12 | Hand-off and schedule | 3. Job search | Not started |
 | 6 | Application profile | 2. Application | Not started |
 | 7 | Greenhouse and Lever filler | 2. Application | Not started |
@@ -78,8 +78,9 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Adzuna usage is tracked and the app pauses before the daily limit (250 calls)
 
 **Milestone 11. Filtering and fit scoring**
-- [ ] On 20 hand-labeled postings, at least 17 get the right work setting
-- [ ] The top-scored jobs match the user's own top picks
+- [ ] On 20 hand-labeled postings, at least 17 get the right work setting (sheet written 2026-10-05: `output/job_labels/2026-10-05_120937/labels.csv`; 9 of its 20 are "unknown", see Blockers)
+- [ ] The top-scored jobs match the user's own top picks (same sheet: mark your top 5)
+- [x] Salary and work-setting filters run on Claude's labels; jobs with no fit score are kept and shown last (tests)
 
 **Milestone 12. Hand-off and schedule**
 - [ ] One click goes from a shortlisted job to a cover letter draft
@@ -163,10 +164,17 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-05 | The salary range isn't sent to Adzuna; the app checks it after fetching, against salaries stated in the posting only. Jobs with no salary, or only Adzuna's estimate, are kept and labeled ("Not listed" or "est.") | Adzuna's salary filter also applies to its estimates (34 of 39 live results), so jobs that never stated a salary were removed on a guess. Spec said the range is "sent to Adzuna's salary filters and checked again after fetching" | Yes (option b, 2026-10-05) |
 | 2026-10-05 | "Hide jobs with no salary listed" hides only jobs with no salary at all; jobs with an Adzuna estimate stay visible, labeled "est." | Most Adzuna results have only an estimate (36 of 41 live), so hiding them would hide most jobs | Yes (2026-10-05) |
 | 2026-10-05 | Word limit after drafting: humanize and the claim fix-up are told the word limit (400, or 250 for Short). If a generated letter is still over it after either step, a trim step (`agent/prompts/trim.md`, effort `low`) cuts it to 20 words under the limit or less, removing words only. Trimming runs before verify, so the trimmed letter is checked. No call when the letter is within the limit; your own edits are never trimmed. `scripts/eval.py` runs the same steps and reports the trim cuts | Posting 09 went from 394 to 404 words after those steps, and nothing checked the length again | Yes (2026-10-05) |
+| 2026-10-05 | Fit scoring is batched: one Claude call (`agent/prompts/score_jobs.md`, Opus 5.5 at effort `low`) reads up to 10 postings with the resume and returns, for each, the work setting (remote / hybrid / on-site / unknown), a fit from 1 to 5 and a one-line reason. Up to 4 calls run at once. It doesn't reuse Parse and Match | Spec says to reuse Parse and Match (2 calls per job). Adzuna descriptions are cut at 500 characters, so Match has little to work with; batching costs about $0.50 a run instead of $2–4 | Yes (2026-10-05) |
+| 2026-10-05 | Every new posting that passes the date, salary and exclusion rules is sent to Claude, including the nationwide remote query's results whose text doesn't say remote. Claude's label replaces the keyword guess, then the work-setting and location rules run. Postings already in the app aren't scored again (matched by source ID or by company, title and place, as given or as remote) | Spec: "kept only if Claude confirms the posting is remote"; about $0.30 a run more than checking only snippets that mention remote | Yes (2026-10-05) |
+| 2026-10-05 | If scoring fails (no API key, no resume, out of credits or an API error), the jobs are still stored with the keyword label and no fit, sorted last with a dash, and the problem is shown after the run | A failed Claude call shouldn't lose a run's Adzuna results | n/a |
+| 2026-10-05 | `jobs` gets `fit` and `fit_reason` columns; `init_db` adds missing columns to an existing database (`ADDED_COLUMNS` in `storage/db.py`). The shortlist is sorted by fit, then date, with unscored jobs last | Databases created in Milestone 10 already have a `jobs` table, which `CREATE TABLE IF NOT EXISTS` skips | n/a |
+| 2026-10-05 | Acceptance check script `scripts/label_jobs.py`: writes 20 scored postings (a mix of Claude's settings, newest first) to `output/job_labels/<date-time>/labels.csv` for you to label (`your_setting`, x in `your_pick` for your top 5), and `--check` reports settings right out of 20 and how your picks compare with Claude's top scores | Spec: 20 hand-labeled postings and your own top picks | n/a |
 | 2026-10-01 | Find jobs screen per the mockup, minus the Fit column (Milestone 11) and Start letter (Milestone 12). Job titles link to the posting; Save / Dismiss / Move to New change the job's status | Milestone 10 scope | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
+
+- [ ] Work setting from snippets: Adzuna descriptions stop at 500 characters, so Claude labeled 27 of 41 live jobs "unknown" (mostly Nashville city results), and 9 of the 20 postings on the labeling sheet. If the full postings say hybrid or on-site, those count as wrong, and the 17-of-20 target can't be met. Possible fix after labeling: for city results Claude can't label, read the full posting from the job's link (as Start letter will in Milestone 12), skipping sites that forbid automated reading
 
 - [ ] Confirm the defaults listed in the spec's "Open questions & defaults assumed" table with the user
 - [ ] Get a writing sample (for example, a past cover letter) from the user for the profile
@@ -191,6 +199,14 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-05 (Milestone 11, build)
+- Built Claude's work-setting labels and fit scores: `search/score.py` and `agent/prompts/score_jobs.md` (batches of 10, 4 at a time); `search/run.py` now collects each posting once with every query that found it, applies the date, salary and exclusion rules, skips postings already in the app, scores the rest, then runs the work-setting and location rules on Claude's labels. Fit and reason stored in new `jobs` columns (an existing database gets them on start-up). Find jobs shows the Fit square and reason from the mockup and sorts by fit, then date. Acceptance sheet script `scripts/label_jobs.py`.
+- User decisions: batched scoring instead of Parse + Match per job; check every remote-query posting with Claude.
+- Tests: 257 passed, 1 skipped. New: Claude's label decides the setting (kept from the remote query, dropped as on-site), sorting by fit, only new postings scored, a known job relabeled remote isn't scored again, a scoring failure keeps the jobs, batch request contents and tag escaping, a missing posting in the reply, batching and partial failure, no key or resume, the database upgrade, the Fit column, and the labeling sheet.
+- Live run in the app (user approved; `app.db` backed up first): saved the search "Software and backend engineering" (Software Engineer and Backend Engineer; Nashville, TN and Knoxville, TN, 25 mi; remote + hybrid; last 3 days) and ran it. 6 Adzuna calls (36 of 250 today), Claude checked 111 postings, 30 seconds in total, no errors. 41 new jobs: 13 remote, 1 hybrid, 27 unknown. Fits: one 5, seven 4s, fourteen 3s, fifteen 2s, four 1s. Reasons are specific and seniority is weighed (principal, lead and manager roles get 1–2 against 5 years; "Java and Spring Boot absent from resume").
+- Checked the Find jobs screen in the running app: Fit squares and reasons match the mockup, sorted by fit; no server errors.
+- Wrote the labeling sheet: 10 remote, 1 hybrid, 9 unknown.
 
 ### 2026-10-05 (letter length fix)
 - Built the length fix the user approved: humanize and the fix-up get the word limit; a new trim step cuts letters still over it, before verify. Wired into the app (`ui/drafting.py`) and `scripts/eval.py` (new "trim cuts" in the report). Your own edits are never trimmed. "What happens next" on New cover letter mentions the trim.

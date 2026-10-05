@@ -4,7 +4,7 @@ import json
 from datetime import date, datetime
 
 from search.criteria import SearchCriteria
-from search.normalize import Job
+from search.normalize import Job, dedupe_key
 from storage.db import connect
 
 STATUSES = ("new", "saved", "dismissed", "applying")
@@ -52,6 +52,25 @@ def mark_run(search_id: int, when: str) -> None:
 # Jobs ------------------------------------------------------------------------------
 
 
+def known(job: Job) -> int | None:
+    """The ID of this posting if the app already has it: the same source ID, or the same company,
+    title and place (checked both as given and as remote, since Claude may relabel it)."""
+    keys = (job.dedupe_key, dedupe_key(job.company, job.title, "remote"))
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id FROM jobs WHERE (source = ? AND source_id = ? AND source_id != '') OR dedupe_key IN (?, ?)",
+            (job.source, job.source_id, *keys),
+        ).fetchone()
+    conn.close()
+    return row["id"] if row else None
+
+
+def touch(job_id: int, seen_at: str) -> None:
+    with connect() as conn:
+        conn.execute("UPDATE jobs SET last_seen_at = ? WHERE id = ?", (seen_at, job_id))
+    conn.close()
+
+
 def upsert(job: Job, search_id: int | None, seen_at: str) -> bool:
     """Store a job unless it's already known. Returns True if it's new.
     A job counts as known if the same source already gave it, or its duplicate key exists
@@ -68,11 +87,11 @@ def upsert(job: Job, search_id: int | None, seen_at: str) -> bool:
             conn.execute(
                 """INSERT INTO jobs (dedupe_key, source, source_id, search_id, title, company, location,
                        work_setting, salary_min, salary_max, salary_estimated, posted_at, apply_url,
-                       description, first_seen_at, last_seen_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       description, fit, fit_reason, first_seen_at, last_seen_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (job.dedupe_key, job.source, job.source_id, search_id, job.title, job.company, job.location,
                  job.work_setting, job.salary_min, job.salary_max, int(job.salary_estimated), job.posted_at,
-                 job.apply_url, job.description, seen_at, seen_at),
+                 job.apply_url, job.description, job.fit, job.fit_reason or None, seen_at, seen_at),
             )
             new = True
     conn.close()
@@ -80,11 +99,11 @@ def upsert(job: Job, search_id: int | None, seen_at: str) -> bool:
 
 
 def list_jobs(status: str = "new", hide_no_salary: bool = False) -> list[dict]:
-    """Newest postings first (Milestone 11 sorts by fit, then date)."""
+    """Best fit first (unscored jobs last), then newest."""
     query = "SELECT * FROM jobs WHERE status = ?"
     if hide_no_salary:
         query += " AND (salary_min IS NOT NULL OR salary_max IS NOT NULL)"
-    query += " ORDER BY COALESCE(posted_at, first_seen_at) DESC, id DESC"
+    query += " ORDER BY fit IS NULL, fit DESC, COALESCE(posted_at, first_seen_at) DESC, id DESC"
     with connect() as conn:
         rows = conn.execute(query, (status,)).fetchall()
     conn.close()
