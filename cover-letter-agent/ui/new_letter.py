@@ -2,6 +2,10 @@
 
 Generating runs fetch -> parse -> match -> draft, saving after each step so a
 failure never loses work; "Try again" picks up where it stopped.
+
+Start letter on Find jobs opens this screen with ?job=<id>. A watch-list job already has
+its full posting, so drafting starts right away. Adzuna doesn't let the app read its job
+pages, so for those the link and paste box are set up for you.
 """
 
 import streamlit as st
@@ -9,6 +13,7 @@ import streamlit as st
 import config
 from agent import fetch, pipeline
 from storage import db, resume
+from storage import jobs as job_store
 from storage import profile as profile_store
 from ui import drafting, nav
 
@@ -34,6 +39,48 @@ def _show_paste() -> None:
     st.session_state.nl_paste_mode = True
 
 
+def posting_from_job(job: dict) -> str:
+    """A watch-list job's stored posting, headed like a fetched page's."""
+    head = [f"Job title: {job['title']}", f"Company: {job['company']}"]
+    if job["location"]:
+        head.append(f"Location: {job['location']}")
+    return "\n".join(head) + "\n\n" + (job["description"] or "")
+
+
+def _from_job(job_id: int) -> None:
+    """Set up the screen once for a job sent from Find jobs."""
+    if st.session_state.get("nl_job_loaded") == job_id:
+        return
+    st.session_state.nl_job_loaded = job_id
+    job = job_store.get_job(job_id)
+    if not job:
+        return
+    _clear_status()
+    if job["source"] != "adzuna" and len(job["description"] or "") >= fetch.MIN_CHARS:
+        text, trimmed = fetch.trim(posting_from_job(job))
+        app_id = db.create_application(job["apply_url"] or None, text)
+        db.update_application(app_id, job_id=job_id)
+        job_store.set_status(job_id, "applying")
+        if trimmed:
+            st.session_state.rv_flash = TRIMMED_NOTE.format(n=fetch.MAX_CHARS)
+        _run(app_id)
+        return
+    st.session_state.nl_job = job_id
+    st.session_state.nl_url = job["apply_url"] or ""
+    st.session_state.nl_paste_mode = True
+    st.session_state.nl_paste = ""
+
+
+def _job_note() -> None:
+    job = job_store.get_job(st.session_state.nl_job)
+    if not job:
+        return
+    label = " at ".join(x for x in (job["title"], job["company"]) if x)
+    link = f"[Open the posting]({job['apply_url']})" if job["apply_url"] else "Open the posting"
+    st.info(f"**{label}**, from Find jobs. Adzuna doesn't let the app read its job pages, so {link[0].lower()}"
+            f"{link[1:]}, copy the whole posting and paste it below. Then click Generate draft.")
+
+
 def new_letter_page() -> None:
     _init_state()
     st.markdown('<p class="ja-crumb">Cover letter agent</p>', unsafe_allow_html=True)
@@ -46,10 +93,18 @@ def new_letter_page() -> None:
                 nav.go("profile")
         return
 
+    if job_id := st.query_params.get("job"):
+        _from_job(int(job_id))
+    else:  # opened from the sidebar: a job from an earlier visit no longer applies
+        for key in ("nl_job", "nl_job_loaded"):
+            st.session_state.pop(key, None)
+
     if st.session_state.get("nl_confirm"):
         _confirm_card(st.session_state.nl_confirm)
         return
     _status_messages()
+    if st.session_state.get("nl_job"):
+        _job_note()
 
     form, aside = st.columns([5, 2], gap="large")
     with form, st.container(border=True, key="card_letter_setup"):
@@ -152,6 +207,9 @@ def _start() -> None:
         st.rerun()
 
     app_id = db.create_application(url or None, text, notes)
+    if job_id := st.session_state.pop("nl_job", None):
+        db.update_application(app_id, job_id=job_id)
+        job_store.set_status(job_id, "applying")
     if trimmed:
         st.session_state.rv_flash = TRIMMED_NOTE.format(n=fetch.MAX_CHARS)
     _run(app_id)

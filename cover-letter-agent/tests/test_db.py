@@ -7,7 +7,7 @@ from storage import db
 APPLICATION_COLUMNS = {
     "id", "url", "company", "title", "posting_text", "user_notes", "parsed_json",
     "match_json", "status", "created_at", "approved_at", "submitted_at",
-    "sent_version", "notes",
+    "sent_version", "notes", "job_id",  # job_id: the shortlisted job it was started from (Milestone 12)
 }
 DRAFT_COLUMNS = {
     "id", "application_id", "version", "text", "verify_json", "feedback",

@@ -18,6 +18,7 @@ from storage import resume
 
 BATCH = 10
 WORKERS = 4
+MAX_CHARS = 3000  # watch-list jobs come with full descriptions; the start is enough to score
 
 SCHEMA = {
     "type": "object",
@@ -53,7 +54,7 @@ def _postings_block(jobs: list[Job]) -> str:
     parts = []
     for n, job in enumerate(jobs, 1):
         text = (f"Title: {job.title}\nCompany: {job.company}\nLocation: {job.location or 'not given'}\n\n"
-                f"{job.description}")
+                f"{job.description[:MAX_CHARS]}")
         # Postings are untrusted: stop them from closing or opening the tags themselves.
         safe = re.sub(r"<\s*/?\s*postings?\b[^>]*>", "[tag removed]", text, flags=re.I)
         parts.append(f'<posting id="{n}">\n{safe}\n</posting>')

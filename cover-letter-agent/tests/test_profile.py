@@ -102,6 +102,9 @@ def _profile_script():
 
 
 def open_profile():
+    from storage import db
+
+    db.init_db()  # the watch list lives in the database (the app creates it on start-up)
     at = AppTest.from_function(_profile_script, default_timeout=30)
     at.run()
     assert not at.exception, at.exception
@@ -182,3 +185,37 @@ def test_banned_phrase_list_can_be_edited(at, monkeypatch, tmp_path):
     click(at, "Save list")
     assert lint.load_phrases(path) == ["thrilled", "leverage", "synergy"]
     assert any(m.value == "Banned phrases: 3" for m in at.markdown)
+
+
+
+def test_watch_list_add_and_remove(app_paths, monkeypatch):
+    from search import watchlist
+    from storage import db
+    from storage import jobs as job_store
+
+    db.init_db()
+    asked = []
+
+    def fake_board(platform, board, client=None):
+        asked.append((platform, board))
+        if board == "gone":
+            raise watchlist.WatchError("no job board found. Check the careers link.")
+        return [{"company_name": "Axios"}, {"company_name": "Axios"}]
+
+    monkeypatch.setattr(watchlist, "fetch_board", fake_board)
+    at = open_profile()
+    at.text_input(key="pf_watch_link").input("https://example.com/careers")
+    click(at, "Add company")
+    assert "Use a Greenhouse, Lever or Ashby careers link" in at.warning[0].value and asked == []
+
+    at.text_input(key="pf_watch_link").input("https://job-boards.greenhouse.io/gone")
+    click(at, "Add company")
+    assert "Couldn't add it: no job board found" in at.warning[0].value
+
+    at.text_input(key="pf_watch_link").input("https://job-boards.greenhouse.io/axios")
+    click(at, "Add company")
+    assert "Added Axios (Greenhouse, 2 open jobs)." in at.success[0].value
+    assert [(c["name"], c["platform"], c["board"]) for c in job_store.list_companies()] == [("Axios", "greenhouse", "axios")]
+    assert any("Axios" in m.value and "Greenhouse" in m.value for m in at.markdown)
+    click(at, "Remove")
+    assert job_store.list_companies() == []

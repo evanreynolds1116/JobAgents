@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 11. Filtering and fit scoring (5 is waiting on your scores)
-- **Next step:** Label the 20 postings in `output/job_labels/2026-10-05_120937/labels.csv`, then run `scripts/label_jobs.py --check` on it for the Milestone 11 check; separately, score the Milestone 5 evaluation (the three `scores.csv` files)
+- **Current milestone:** Phase 3 built through 12; 11 is waiting on your labels, 5 on your scores. Next build: Phase 2 (Milestone 6)
+- **Next step:** Label the Milestone 11 sheet and score the Milestone 5 evaluation; then start Milestone 6 (application profile)
 - **Last updated:** 2026-10-05
 
 ## Build order
@@ -32,7 +32,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 5 | Export, history and evaluation | 1. Cover letter | In progress (awaiting the quality evaluation) |
 | 10 | Saved searches and Adzuna | 3. Job search | Done (2026-10-05) |
 | 11 | Filtering and fit scoring | 3. Job search | In progress (live run done; waiting on your labels) |
-| 12 | Hand-off and schedule | 3. Job search | Not started |
+| 12 | Hand-off and schedule | 3. Job search | Done (2026-10-05) |
 | 6 | Application profile | 2. Application | Not started |
 | 7 | Greenhouse and Lever filler | 2. Application | Not started |
 | 8 | General forms and answer learning | 2. Application | Not started |
@@ -83,9 +83,9 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Salary and work-setting filters run on Claude's labels; jobs with no fit score are kept and shown last (tests)
 
 **Milestone 12. Hand-off and schedule**
-- [ ] One click goes from a shortlisted job to a cover letter draft
-- [ ] A scheduled run adds only new jobs
-- [ ] Company watch list (Greenhouse, Lever, Ashby) works
+- [x] One click goes from a shortlisted job to a cover letter draft (live 2026-10-05: Start letter on OnePay "Software Engineer, Risk" from the watch list went straight to the review screen with a checked 350-word draft in about 2.5 minutes; Adzuna jobs open New cover letter ready to paste, since Adzuna blocks automated reading)
+- [x] A scheduled run adds only new jobs (tests: a second scheduled run adds 0 new jobs; the live scheduled-run check was skipped by your choice)
+- [x] Company watch list (Greenhouse, Lever, Ashby) works (all three APIs read live on 5 real boards; OnePay and Realm added in the app and run live: 9 jobs stored and scored)
 
 ### Phase 2: Application agent
 
@@ -169,10 +169,20 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-05 | If scoring fails (no API key, no resume, out of credits or an API error), the jobs are still stored with the keyword label and no fit, sorted last with a dash, and the problem is shown after the run | A failed Claude call shouldn't lose a run's Adzuna results | n/a |
 | 2026-10-05 | `jobs` gets `fit` and `fit_reason` columns; `init_db` adds missing columns to an existing database (`ADDED_COLUMNS` in `storage/db.py`). The shortlist is sorted by fit, then date, with unscored jobs last | Databases created in Milestone 10 already have a `jobs` table, which `CREATE TABLE IF NOT EXISTS` skips | n/a |
 | 2026-10-05 | Acceptance check script `scripts/label_jobs.py`: writes 20 scored postings (a mix of Claude's settings, newest first) to `output/job_labels/<date-time>/labels.csv` for you to label (`your_setting`, x in `your_pick` for your top 5), and `--check` reports settings right out of 20 and how your picks compare with Claude's top scores | Spec: 20 hand-labeled postings and your own top picks | n/a |
+| 2026-10-05 | Start letter: watch-list jobs (full text stored) create an application linked to the job (`applications.job_id`), mark the job Applying and draft straight to the review screen. Adzuna jobs open New cover letter with the link filled in, the paste box open and a note, because Adzuna's job links return a CloudFront "Request blocked" page to the app; the app doesn't get around bot protection. A job that already has a letter opens it. New "Applying" tab with Open letter | Spec: Start letter fetches the full posting from the job's link; Adzuna blocks that | Yes (2026-10-05) |
+| 2026-10-05 | The fetcher follows redirects one hop at a time and stops before requesting any site on the no-fetch list (LinkedIn, Indeed, Glassdoor, Jobright, HiringCafe), at most 5 hops | It checked only the link you gave, so an aggregator link redirecting to Indeed would have been read | n/a |
+| 2026-10-05 | Daily run: APScheduler `BackgroundScheduler` inside the app's server process (`search/schedule.py`), started once on app start-up; on/off and time on a Daily run card on Find jobs (stored in a new `app_settings` table). A run missed while the app was closed happens when the app is next opened, unless a search already ran since that day's time; a run missed while the computer slept still happens within 6 hours. Scheduled and on-demand runs never overlap. The last scheduled run's outcome shows on the card; the sidebar shows "Find jobs · N new" | Spec: daily schedule with APScheduler while the computer is on; "New jobs" count in the app. The server must be running (open the app once after starting it) | Yes (in-app scheduler, 2026-10-05) |
+| 2026-10-05 | Company watch list: new `watch_companies` table; companies are added on Profile & resume by pasting a careers link (Greenhouse, Lever or Ashby), checked with one call to the board. Each run reads every board once; a job is matched to a search when all the words of one of its titles appear in the job title. It qualifies as remote (anywhere in the US; Lever and Ashby give the country) or near a city (its locations are looked up in the places list). A board's own remote/hybrid/on-site label (Lever, Ashby) is trusted over Claude's. Descriptions sent for scoring are capped at 3,000 characters; the full text is stored | Spec: watch list matched by title after fetching; one free call per company per run | n/a |
+| 2026-10-05 | When two postings share a duplicate key, each is checked against the rules on its own data, and the first copy that qualifies is the one stored | A UK-only remote job was kept because a US copy with the same key qualified | n/a |
+| 2026-10-05 | Watch-list jobs skip the date rule: every open job that matches a search's titles, locations, salary and exclusions is collected; jobs already seen aren't new again, so after the first run only newly posted ones appear | Spec: watch-list jobs filtered by posted date. Boards keep jobs open for months, and every match on 5 real boards was older than 3 days | Yes (2026-10-05) |
 | 2026-10-01 | Find jobs screen per the mockup, minus the Fit column (Milestone 11) and Start letter (Milestone 12). Job titles link to the posting; Save / Dismiss / Move to New change the job's status | Milestone 10 scope | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
+
+- [x] Watch-list dates: the date rule is skipped for watch-list jobs (user's choice, 2026-10-05)
+- [x] Watch list: OnePay and Realm (Ashby) added 2026-10-05 for the live check (you had no preference; both are companies you've applied to). Remove or add more on Profile & resume
+- [x] Milestone 12 live checks: run with the watch list and Start letter done 2026-10-05; scheduled-run live check skipped by your choice
 
 - [ ] Work setting from snippets: Adzuna descriptions stop at 500 characters, so Claude labeled 27 of 41 live jobs "unknown" (mostly Nashville city results), and 9 of the 20 postings on the labeling sheet. If the full postings say hybrid or on-site, those count as wrong, and the 17-of-20 target can't be met. Possible fix after labeling: for city results Claude can't label, read the full posting from the job's link (as Start letter will in Milestone 12), skipping sites that forbid automated reading
 
@@ -199,6 +209,19 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-05 (Milestone 12, live checks)
+- Per your choices: watch-list jobs skip the date rule; live check of a run plus Start letter (not the scheduled run).
+- In the running app (database backed up first): added OnePay and Realm on Profile & resume. Ashby doesn't give a company name, so the first add showed "Oneapp"; adding again with the name filled in renamed it. Ran the search: 6 Adzuna calls (42 of 250 today) and 2 watch-list companies, 19 new jobs, 62 already seen and not scored again, Claude checked 77 postings. The 9 watch-list jobs: OnePay "Software Engineer, Risk" 5; OnePay "Product Facing", OnePay "Credit Card" (the one you applied to) and Realm "Backend" 4; interns and new-grad roles 1–2.
+- Clicked Start letter on OnePay "Software Engineer, Risk": drafted, smoothed, checked and fixed up, then opened on the review screen (about 2.5 minutes; 350 words; 17 claims checked, 2 left for you to review, 2 style flags). The application is linked to the job, which moved to Applying. No server errors.
+- Noticed: OnePay's board labels its internship "Remote" while the text says NYC 3–4 days a week; board labels are trusted over Claude's reading, so it shows as remote (scored 1, so it sits at the bottom).
+- Tests: 298 passed, 1 skipped.
+
+### 2026-10-05 (Milestone 12, build)
+- Built Start letter (`ui/find_jobs.py`, `ui/new_letter.py`), the daily run (`search/schedule.py`, APScheduler 3.11.3 added to `requirements.txt`), the company watch list (`search/watchlist.py`, Profile & resume card, run integration), the fetcher's redirect check, and the duplicate fix above. User decisions: Adzuna jobs open New cover letter ready to paste; scheduler inside the app.
+- Found while building: Adzuna's job links are blocked for the app (CloudFront 403), so neither Start letter nor the Milestone 11 "unknown" fix can read full Adzuna postings.
+- Live, free: read the Axios (Greenhouse), Realm, OnePay and Tessera Labs (Ashby) and Palantir (Lever) boards with the saved search's rules: all reachable; every title match was older than 3 days (see Blockers). Checked Find jobs (Start letter, Applying tab, Daily run card, "Find jobs · 41 new") and the Profile watch-list card in the running app; widened the actions column so the three buttons fit on one line; no server errors.
+- Tests: 298 passed, 1 skipped. New: `test_watchlist.py` (board links, the three APIs' shapes, title matching, locations, a run with the watch list, duplicates judged on their own copy, storage), `test_schedule.py` (a second scheduled run adds 0 new jobs, problems recorded, no overlapping runs, missed runs, scheduling, start-up once, status text), Start letter for watch-list and Adzuna jobs, the redirect check, the watch-list card.
 
 ### 2026-10-05 (Milestone 11, build)
 - Built Claude's work-setting labels and fit scores: `search/score.py` and `agent/prompts/score_jobs.md` (batches of 10, 4 at a time); `search/run.py` now collects each posting once with every query that found it, applies the date, salary and exclusion rules, skips postings already in the app, scores the rest, then runs the work-setting and location rules on Claude's labels. Fit and reason stored in new `jobs` columns (an existing database gets them on start-up). Find jobs shows the Fit square and reason from the mockup and sorts by fit, then date. Acceptance sheet script `scripts/label_jobs.py`.

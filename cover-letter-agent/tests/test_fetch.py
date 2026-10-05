@@ -108,3 +108,21 @@ def test_sites_that_forbid_automated_reading_are_not_requested(url):
 def test_rejects_non_web_addresses():
     assert not fetch.fetch("ftp://example.com/job").ok
     assert not fetch.fetch("   ").ok
+
+
+def test_redirect_to_a_no_fetch_site_stops_before_requesting_it():
+    requested = []
+
+    def handler(request):
+        requested.append(request.url.host)
+        return httpx.Response(302, headers={"location": "https://www.indeed.com/viewjob?jk=1"})
+
+    result = fetch.fetch("https://aggregator.example.com/land/ad/1", client=client_for(handler))
+    assert not result.ok and "leads to indeed.com" in result.reason
+    assert requested == ["aggregator.example.com"]  # Indeed itself was never requested
+
+
+def test_endless_redirects_give_up():
+    loop = lambda r: httpx.Response(302, headers={"location": "/again"})  # noqa: E731
+    result = fetch.fetch("https://careers.example.com/start", client=client_for(loop))
+    assert not result.ok and "redirects too many times" in result.reason

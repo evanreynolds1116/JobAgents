@@ -465,3 +465,67 @@ def test_your_own_long_edit_is_not_trimmed(calls):
     app_id = make_app()
     drafting.save_edit(app_id, LETTER.replace("newsletter.", "newsletter." + PADDING))
     assert PADDING in db.latest_draft(app_id)["text"] and calls.counts["trim"] == 0
+
+
+# --- Start letter from Find jobs (Milestone 12) -----------------------------------
+
+
+def shortlisted(source="greenhouse", description=None):
+    from datetime import datetime
+
+    from search.normalize import Job
+    from storage import jobs as job_store
+
+    text = description if description is not None else POSTING
+    job = Job(source, "77", "Marketing Coordinator", "Harpeth Outdoor Co.", "Franklin, TN", "hybrid", None, None,
+              False, "2026-10-01T09:00:00", "https://harpeth.example/careers/marketing", text, fit=5,
+              fit_reason="Strong match")
+    job_store.upsert(job, None, datetime.now().isoformat(timespec="seconds"))
+    return job_store.list_jobs("new")[0]["id"]
+
+
+def open_from_job(job_id):
+    at = AppTest.from_function(_new_letter_script, default_timeout=30)
+    at.query_params["job"] = str(job_id)
+    at.run()
+    assert not at.exception, at.exception
+    return at
+
+
+def test_watch_list_job_goes_straight_to_a_draft(calls):
+    from storage import jobs as job_store
+
+    job_id = shortlisted()
+    open_from_job(job_id)
+    assert calls.went == [("review", {"app": 1})]  # one click: drafted and checked, on the review screen
+    app = db.get_application(1)
+    assert app["job_id"] == job_id and app["url"] == "https://harpeth.example/careers/marketing"
+    assert app["posting_text"].startswith("Job title: Marketing Coordinator\nCompany: Harpeth Outdoor Co.")
+    assert calls.counts["fetch"] == 0 and calls.counts["draft"] == 1 and len(db.list_drafts(1)) == 1
+    assert job_store.get_job(job_id)["status"] == "applying"
+    assert job_store.application_for_job(job_id) == 1
+
+
+def test_adzuna_job_opens_ready_to_paste(calls):
+    from storage import jobs as job_store
+
+    job_id = shortlisted(source="adzuna", description="A 500-character snippet.")
+    at = open_from_job(job_id)
+    assert calls.went == [] and calls.counts["parse"] == 0
+    assert at.text_input(key="nl_url").value == "https://harpeth.example/careers/marketing"
+    assert "Adzuna doesn't let the app read its job pages" in at.info[0].value
+    assert "Marketing Coordinator at Harpeth Outdoor Co." in at.info[0].value
+    at.text_area(key="nl_paste").input(POSTING)
+    click(at, "Generate draft")
+    assert calls.went == [("review", {"app": 1})] and calls.counts["fetch"] == 0
+    assert db.get_application(1)["job_id"] == job_id and job_store.get_job(job_id)["status"] == "applying"
+
+
+def test_new_letter_from_the_sidebar_forgets_the_job(calls):
+    job_id = shortlisted(source="adzuna", description="Snippet.")
+    open_from_job(job_id)
+    at = open_new_letter()  # no ?job=: a letter started now isn't linked to that job
+    assert not at.info
+    at.text_input(key="nl_url").input("https://harpeth.example/careers/marketing")
+    click(at, "Generate draft")
+    assert db.get_application(1)["job_id"] is None

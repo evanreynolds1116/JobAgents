@@ -40,8 +40,8 @@ def all_pages() -> list[st.Page]:
     return [page(key) for key in PAGES]
 
 
-def sidebar_pages() -> list[st.Page]:
-    return [page(key) for key, (_, _, shown) in PAGES.items() if shown]
+def sidebar_pages() -> list[tuple[str, st.Page]]:
+    return [(key, page(key)) for key, (_, _, shown) in PAGES.items() if shown]
 
 
 def go(key: str, **query_params) -> None:

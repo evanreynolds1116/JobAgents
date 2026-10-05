@@ -1,23 +1,25 @@
-"""Find jobs screen: saved searches, run now, and the shortlist sorted by fit, then date
-(Milestones 10 and 11).
-
-Start letter, the schedule and the company watch list come in Milestone 12.
+"""Find jobs screen: saved searches, run now, the daily run, and the shortlist sorted by
+fit, then date, with Start letter (Milestones 10 to 12).
 """
 
-from datetime import datetime
+from datetime import datetime, time
 from html import escape
 
 import streamlit as st
 
 import config
-from search import adzuna, run
+from search import adzuna, run, schedule, watchlist
 from search.criteria import DATE_OPTIONS, SETTING_LABELS, SETTINGS, City, SearchCriteria
 from search.normalize import salary_label
 from storage import jobs as store
-from ui import dates
+from ui import dates, nav
 from ui.style import muted
 
-TABS = {"new": "New", "saved": "Saved", "dismissed": "Dismissed"}
+TABS = {"new": "New", "saved": "Saved", "applying": "Applying", "dismissed": "Dismissed"}
+
+
+def source_label(source: str) -> str:
+    return "via Adzuna" if source == "adzuna" else f"via watch list ({watchlist.PLATFORMS.get(source, source)})"
 
 
 def posted_label(stamp: str | None, now: datetime | None = None) -> str:
@@ -76,9 +78,11 @@ def find_jobs_page() -> None:
 
     if st.session_state.get("fj_editing") or not searches:
         _editor(searches)
+    companies = store.list_companies()
     for saved in searches:
-        _search_card(saved)
+        _search_card(saved, companies)
     if searches:
+        _schedule_card()
         _results()
 
 
@@ -91,19 +95,27 @@ def _messages() -> None:
 
 
 def _run(searches: list[dict]) -> None:
-    try:
-        with st.spinner(f"Searching Adzuna ({run.planned_calls(searches)} calls) and scoring new jobs…"):
-            result = run.run_searches(searches)
-    except (run.UsageLimit, adzuna.AdzunaError) as exc:
-        st.session_state.fj_flash = ("error", str(exc))
-    else:
-        st.session_state.fj_flash = ("success", result.summary())
-        st.session_state.fj_errors = result.errors
+    with schedule.exclusive() as free:
+        if not free:
+            st.session_state.fj_flash = ("info", "The daily run is searching right now. Check back in a minute.")
+            st.rerun()
+        try:
+            with st.spinner(f"Searching Adzuna ({run.planned_calls(searches)} calls) and your watch list, "
+                            "and scoring new jobs…"):
+                result = run.run_searches(searches)
+        except (run.UsageLimit, adzuna.AdzunaError) as exc:
+            st.session_state.fj_flash = ("error", str(exc))
+        else:
+            st.session_state.fj_flash = ("success", result.summary())
+            st.session_state.fj_errors = result.errors
     st.rerun()
 
 
-def _search_card(saved: dict) -> None:
+def _search_card(saved: dict, companies: list[dict]) -> None:
     criteria: SearchCriteria = saved["criteria"]
+    rows = criteria.summary()
+    if companies:
+        rows.append(("Watch list", f"{len(companies)} compan{'ies' if len(companies) != 1 else 'y'}"))
     with st.container(border=True, key=f"card_search_{saved['id']}"):
         title, usage = st.columns([3, 2], vertical_alignment="center")
         title.subheader(f"Saved search: {saved['name']}", anchor=False)
@@ -111,7 +123,47 @@ def _search_card(saved: dict) -> None:
                       f"this search uses {len(adzuna.build_queries(criteria))}")
         st.markdown("<br>".join(f'<span class="ja-muted">{escape(label)}</span>&nbsp;&nbsp;'
                                 f'{escape(value).replace("$", "&#36;")}'  # keep $ from becoming math
-                                for label, value in criteria.summary()), unsafe_allow_html=True)
+                                for label, value in rows), unsafe_allow_html=True)
+
+
+def schedule_status(s: dict, upcoming: datetime | None) -> str:
+    """One line about the daily run: when it's next, and how the last one went."""
+    if not s["enabled"]:
+        text = "Off. Searches run only when you click Run search now."
+    else:
+        at = datetime.combine(datetime.now().date(), time.fromisoformat(s["time"]))
+        text = f"Every day at {at.strftime('%I:%M %p').lstrip('0')} while the app is running."
+        if upcoming:
+            text += f" Next run {last_run_label(upcoming.isoformat(timespec='seconds'))}."
+    if last := s["last"]:
+        outcome = f"{last['new']} new job{'s' if last['new'] != 1 else ''}" if last["ok"] else last["message"]
+        text += f" Last daily run {last_run_label(last['at'])}: {outcome}"
+        text += "" if outcome.endswith(".") else "."
+    return text
+
+
+def _schedule_card() -> None:
+    s = schedule.settings()
+    with st.container(border=True, key="card_schedule"):
+        head, toggle, when, save = st.columns([2.4, 1.2, 1.2, 1], vertical_alignment="bottom")
+        head.subheader("Daily run", anchor=False)
+        enabled = toggle.toggle("Run every day", value=s["enabled"], key="fj_sched_on")
+        at = when.time_input("Time", value=time.fromisoformat(s["time"]), step=900, key="fj_sched_time")
+        if save.button("Save time", key="fj_sched_save",
+                       disabled=enabled == s["enabled"] and at.strftime("%H:%M") == s["time"]):
+            schedule.save(enabled, at)
+            st.session_state.fj_flash = ("success", "Daily run on." if enabled else "Daily run off.")
+            st.rerun()
+        st.caption(schedule_status(s, schedule.next_run()))
+
+
+def _start_letter(job: dict) -> None:
+    """One click from the shortlist: open the letter already started for this job, or start
+    one on the New cover letter screen."""
+    if app_id := store.application_for_job(job["id"]):
+        nav.go("review", app=app_id)
+    else:
+        nav.go("new_letter", job=job["id"])
 
 
 def _editor(searches: list[dict]) -> None:
@@ -186,7 +238,7 @@ def _results() -> None:
     jobs = store.list_jobs(tab or "new", hide_no_salary=hide)
 
     with st.container(border=True, key="card_job_list"):
-        widths = [0.6, 3.2, 2, 1.5, 1.3, 2]
+        widths = [0.5, 2.5, 1.4, 1.1, 0.9, 4.2]
         for col, label in zip(st.columns(widths), ["Fit", "Role", "Location", "Salary", "Posted", ""]):
             col.caption(label)
         if not jobs:
@@ -200,21 +252,28 @@ def _results() -> None:
                 title = f'<a href="{escape(job["apply_url"])}" target="_blank">{title}</a>'
             reason = f'  \n<span class="ja-muted">{escape(job["fit_reason"])}</span>' if job["fit_reason"] else ""
             role.markdown(f"**{title}**  \n"
-                          f'<span class="ja-muted">{escape(job["company"] or "")} · via Adzuna</span>{reason}',
+                          f'<span class="ja-muted">{escape(job["company"] or "")} · {source_label(job["source"])}'
+                          f'</span>{reason}',
                           unsafe_allow_html=True)
             setting = "Unknown: check posting" if job["work_setting"] == "unknown" else SETTING_LABELS[job["work_setting"]]
             where.markdown(f"{escape(job['location'] or 'Remote (US)')}  \n"
                            f'<span class="ja-muted">{setting}</span>', unsafe_allow_html=True)
             pay.markdown(salary_label(job).replace("$", r"\$"))  # two $ signs would render as math
             when.markdown(posted_label(job["posted_at"]))
-            with actions, st.container(horizontal=True):
-                if job["status"] == "new":
-                    if st.button("Save", key=f"fj_save_{job['id']}"):
-                        store.set_status(job["id"], "saved")
-                        st.rerun()
-                    if st.button("Dismiss", key=f"fj_dismiss_{job['id']}"):
-                        store.set_status(job["id"], "dismissed")
-                        st.rerun()
-                elif st.button("Move to New", key=f"fj_restore_{job['id']}"):
+            with actions, st.container(horizontal=True, gap="small"):
+                status = job["status"]
+                if status == "applying":
+                    if st.button("Open letter", key=f"fj_open_{job['id']}", type="primary"):
+                        _start_letter(job)
+                elif status in ("new", "saved") and st.button("Start letter", key=f"fj_letter_{job['id']}",
+                                                              type="primary"):
+                    _start_letter(job)
+                if status == "new" and st.button("Save", key=f"fj_save_{job['id']}"):
+                    store.set_status(job["id"], "saved")
+                    st.rerun()
+                if status in ("new", "saved") and st.button("Dismiss", key=f"fj_dismiss_{job['id']}"):
+                    store.set_status(job["id"], "dismissed")
+                    st.rerun()
+                if status == "dismissed" and st.button("Move to New", key=f"fj_restore_{job['id']}"):
                     store.set_status(job["id"], "new")
                     st.rerun()

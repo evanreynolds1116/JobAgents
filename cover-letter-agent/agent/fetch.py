@@ -10,13 +10,14 @@ import re
 from dataclasses import dataclass, field
 from html import unescape
 from html.parser import HTMLParser
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 import trafilatura
 
 MAX_CHARS = 30_000   # cap on posting text sent to Claude; you're warned if it's trimmed
 MIN_CHARS = 400      # less than this is a login wall, an error page or a JavaScript shell
+MAX_REDIRECTS = 5
 TIMEOUT = 30.0     # some applicant tracking systems are slow (Greenhouse took 16 s in testing)
 # Says what it is rather than imitating a browser; sites that refuse it get the paste fallback.
 USER_AGENT = "Mozilla/5.0 (compatible; JobAssistant/0.1; personal job-application helper)"
@@ -74,11 +75,25 @@ def fetch(url: str, client: httpx.Client | None = None) -> FetchResult:
 
     own_client = client is None
     client = client or httpx.Client(
-        follow_redirects=True, timeout=TIMEOUT,
+        timeout=TIMEOUT,
         headers={"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"},
     )
     try:
-        response = client.get(url)
+        # Redirects are followed one at a time so a link that leads to a site on the
+        # no-fetch list (an aggregator forwarding to Indeed, say) stops before it's requested.
+        for _ in range(MAX_REDIRECTS + 1):
+            response = client.get(url, follow_redirects=False)
+            if not response.is_redirect:
+                break
+            url = urljoin(str(response.url), response.headers["location"])
+            if domain := blocked_domain(url):
+                return FetchResult(
+                    False, url,
+                    reason=f"That link leads to {domain}, which doesn't allow automated reading, so the app "
+                    "stopped there. Paste the posting text below, or use the company's own careers page link.",
+                )
+        else:
+            return FetchResult(False, url, reason="That link redirects too many times.")
     except httpx.TimeoutException:
         return FetchResult(False, url, reason="The site took too long to respond.")
     except httpx.HTTPError:
@@ -160,7 +175,7 @@ def _job_posting_data(html: str) -> tuple[dict, str]:
             org = item.get("hiringOrganization") or {}
             company = _clean(org.get("name") if isinstance(org, dict) else org)
             location = _location(item.get("jobLocation"))
-            description = _html_to_text(item.get("description") or "")
+            description = html_to_text(item.get("description") or "")
             header = [f"Job title: {title}" if title else "",
                       f"Company: {company}" if company else "",
                       f"Location: {location}" if location else ""]
@@ -226,7 +241,7 @@ class _TextParser(HTMLParser):
             self.parts.append(data)
 
 
-def _html_to_text(html: str) -> str:
+def html_to_text(html: str) -> str:
     parser = _TextParser()
     parser.feed(unescape(html) if "&lt;" in html else html)
     text = "".join(parser.parts)
@@ -236,4 +251,4 @@ def _html_to_text(html: str) -> str:
 
 
 def _visible_text(html: str) -> str:
-    return _html_to_text(html)
+    return html_to_text(html)

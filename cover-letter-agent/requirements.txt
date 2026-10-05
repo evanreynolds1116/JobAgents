@@ -14,3 +14,6 @@ trafilatura>=2.0
 
 # Milestone 5: PDF export (uses Microsoft Word; LibreOffice also works if installed)
 docx2pdf>=0.1.8
+
+# Milestone 12: daily scheduled run
+apscheduler>=3.11,<4

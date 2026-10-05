@@ -1,12 +1,57 @@
-"""Profile & resume screen (Milestone 2)."""
+"""Profile & resume screen (Milestone 2; company watch list, Milestone 12)."""
 
 import streamlit as st
 
 import config
 from agent import lint
+from search import watchlist
+from storage import jobs as job_store
 from storage import profile as profile_store
 from storage import resume
 from ui.style import muted
+
+
+def _add_company() -> None:
+    """Check the careers link with one call to its board, then save the company."""
+    link = st.session_state.get("pf_watch_link", "").strip()
+    board = watchlist.parse_board(link) if link else None
+    if not board:
+        st.session_state.pf_watch_msg = ("warning", "Use a Greenhouse, Lever or Ashby careers link, for example "
+                                         "job-boards.greenhouse.io/acme, jobs.lever.co/acme or jobs.ashbyhq.com/acme.")
+        return
+    try:
+        raws = watchlist.fetch_board(board.platform, board.board)
+    except watchlist.WatchError as exc:
+        st.session_state.pf_watch_msg = ("warning", f"Couldn't add it: {exc}")
+        return
+    name = (st.session_state.get("pf_watch_name", "").strip()
+            or next((r.get("company_name") for r in raws if r.get("company_name")), None)
+            or board.board.replace("-", " ").title())
+    job_store.add_company(name, board.platform, board.board)
+    st.session_state.pf_watch_link = st.session_state.pf_watch_name = ""
+    st.session_state.pf_watch_msg = ("success", f"Added {name} ({watchlist.PLATFORMS[board.platform]}, "
+                                     f"{len(raws)} open job{'s' if len(raws) != 1 else ''}).")
+
+
+def _watch_list() -> None:
+    with st.container(border=True, key="card_watch"):
+        st.subheader("Company watch list", anchor=False)
+        st.caption("Companies whose own job boards are checked on every search, with full job descriptions. "
+                   "Jobs are matched to your searches by title.")
+        for company in job_store.list_companies():
+            name, remove = st.columns([4, 1], vertical_alignment="center")
+            name.markdown(f"{company['name']} "
+                          f'<span class="ja-muted">· {watchlist.PLATFORMS[company["platform"]]}</span>',
+                          unsafe_allow_html=True)
+            if remove.button("Remove", key=f"pf_watch_remove_{company['id']}"):
+                job_store.delete_company(company["id"])
+                st.rerun()
+        link, name = st.columns([3, 2])
+        link.text_input("Careers page link", key="pf_watch_link", placeholder="https://jobs.lever.co/acme")
+        name.text_input("Company name (optional)", key="pf_watch_name")
+        st.button("Add company", on_click=_add_company)
+        if msg := st.session_state.pop("pf_watch_msg", None):
+            getattr(st, msg[0])(msg[1])
 
 PROFILE_FIELDS = ("name", "email", "country_code", "phone", "city", "linkedin", "portfolio",
                   "tone", "length", "sign_off", "always_mention", "never_mention")
@@ -202,6 +247,8 @@ def profile_page() -> None:
                 height=110,
                 placeholder="For example: don't mention my career break in 2022.",
             )
+
+        _watch_list()
 
         settings = config.load_settings()
         with st.container(border=True, key="card_settings"):

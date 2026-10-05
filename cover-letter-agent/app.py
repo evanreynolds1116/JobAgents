@@ -7,7 +7,9 @@ Each screen lives in ui/; this file runs the start-up checks and the navigation.
 import streamlit as st
 
 import config
+from search import schedule
 from storage import db
+from storage import jobs as job_store
 from ui import nav, style
 from ui.setup import setup_page
 
@@ -17,9 +19,11 @@ style.inject()
 
 @st.cache_resource
 def _startup() -> bool:
-    """Create data/, output/ and the database once per server process."""
+    """Create data/, output/ and the database, and start the daily-run scheduler, once per
+    server process."""
     config.ensure_dirs()
     db.init_db()
+    schedule.ensure_started()
     return True
 
 
@@ -36,8 +40,10 @@ def main() -> None:
     current = st.navigation(nav.all_pages(), position="hidden")
     with st.sidebar:
         style.brand()
-        for page in nav.sidebar_pages():
-            st.page_link(page)
+        new_jobs = job_store.count_jobs()["new"]
+        for key, page in nav.sidebar_pages():
+            label = f"{page.title} · {new_jobs} new" if key == "find_jobs" and new_jobs else None
+            st.page_link(page, label=label)
         style.footnote()
     current.run()
 

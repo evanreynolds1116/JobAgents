@@ -83,6 +83,20 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 CREATE INDEX IF NOT EXISTS idx_jobs_source ON jobs (source, source_id);
 
+CREATE TABLE IF NOT EXISTS watch_companies (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    name      TEXT NOT NULL,
+    platform  TEXT NOT NULL CHECK (platform IN ('greenhouse', 'lever', 'ashby')),
+    board     TEXT NOT NULL,            -- the board's name in its URL, e.g. 'axios'
+    added_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')),
+    UNIQUE (platform, board)
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (  -- small values such as the daily run time
+    key    TEXT PRIMARY KEY,
+    value  TEXT
+);
+
 CREATE TABLE IF NOT EXISTS api_usage (
     day      TEXT NOT NULL,
     service  TEXT NOT NULL,
@@ -113,6 +127,7 @@ def init_db(db_path: Path | None = None) -> None:
 ADDED_COLUMNS = [
     ("jobs", "fit", "INTEGER CHECK (fit BETWEEN 1 AND 5)"),
     ("jobs", "fit_reason", "TEXT"),
+    ("applications", "job_id", "INTEGER REFERENCES jobs (id) ON DELETE SET NULL"),
 ]
 
 
@@ -129,7 +144,7 @@ def _add_columns(conn: sqlite3.Connection) -> None:
 # Columns the app may set after creating an application.
 APPLICATION_FIELDS = {
     "url", "company", "title", "posting_text", "user_notes", "parsed_json", "match_json",
-    "status", "approved_at", "submitted_at", "sent_version", "notes",
+    "status", "approved_at", "submitted_at", "sent_version", "notes", "job_id",
 }
 JSON_FIELDS = ("parsed_json", "match_json", "notes")
 TRACKING_PARAMS = ("utm_", "gh_src", "jr_", "ref", "source", "src", "trk")

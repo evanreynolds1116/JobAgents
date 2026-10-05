@@ -98,7 +98,7 @@ def test_search_card_and_results(keys):
                      "Software Engineer</a>**", "Acme Health · via Adzuna", r"\$95k–\$120k", r"\$110k–\$140k est.",
                      "Not listed", "Unknown: check posting", "Today", "1 day ago", "2 days ago"):
         assert expected in page, expected
-    assert at.segmented_control(key="fj_tab").options == ["New (3)", "Saved (0)", "Dismissed (0)"]
+    assert at.segmented_control(key="fj_tab").options == ["New (3)", "Saved (0)", "Applying (0)", "Dismissed (0)"]
     at.toggle(key="fj_hide_no_salary").set_value(True).run()
     assert "Mystery Co" not in text(at)
 
@@ -180,3 +180,40 @@ def test_shortlist_sorted_by_fit_with_reasons(keys):
 def test_fit_badge_levels():
     assert "ja-fit-high" in fit_badge(4) and "ja-fit-mid" in fit_badge(3) and "ja-fit-low" in fit_badge(1)
     assert "–" in fit_badge(None)
+
+
+
+def test_start_letter_buttons(keys, monkeypatch):
+    from ui import nav
+
+    went = []
+    monkeypatch.setattr(nav, "go", lambda key, **params: went.append((key, params)))
+    save_search()
+    add_job("1", "Software Engineer", "Acme Health", fit=5)
+    at = open_page()
+    click(at, "Start letter")
+    job_id = store.list_jobs("new")[0]["id"]
+    assert went == [("new_letter", {"job": job_id})]
+
+    app_id = db.create_application("https://example.com/job", "Posting text", "")
+    db.update_application(app_id, job_id=job_id)
+    store.set_status(job_id, "applying")
+    at = open_page()
+    at.segmented_control(key="fj_tab").set_value("applying").run()
+    click(at, "Open letter")
+    assert went[-1] == ("review", {"app": app_id})
+
+
+def test_watch_list_source_and_schedule_card(keys):
+    from search.normalize import Job
+
+    save_search()
+    store.add_company("Tilt", "lever", "tilt")
+    job = Job("lever", "a1", "Backend Engineer", "Tilt", "Remote - US", "remote", None, None, False,
+              datetime.now().isoformat(timespec="seconds"), "https://jobs.lever.co/tilt/a1", "Text", fit=4)
+    store.upsert(job, None, datetime.now().isoformat(timespec="seconds"))
+    at = open_page()
+    page = text(at)
+    assert "Tilt · via watch list (Lever)" in page and "1 company" in page
+    assert "Daily run" in [s.value for s in at.subheader]
+    assert any(c.value.startswith("Off. Searches run only when you click Run search now.") for c in at.caption)

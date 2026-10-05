@@ -156,3 +156,63 @@ def calls_this_month(service: str, day: date | None = None) -> int:
                            (f"{month}-%", service)).fetchone()
     conn.close()
     return row["n"]
+
+
+def get_job(job_id: int) -> dict | None:
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def application_for_job(job_id: int) -> int | None:
+    """The newest application started from this job, if any."""
+    with connect() as conn:
+        row = conn.execute("SELECT id FROM applications WHERE job_id = ? ORDER BY id DESC LIMIT 1",
+                           (job_id,)).fetchone()
+    conn.close()
+    return row["id"] if row else None
+
+
+# Company watch list -------------------------------------------------------------------
+
+
+def add_company(name: str, platform: str, board: str) -> int:
+    with connect() as conn:
+        company_id = conn.execute(
+            "INSERT INTO watch_companies (name, platform, board) VALUES (?, ?, ?) "
+            "ON CONFLICT (platform, board) DO UPDATE SET name = excluded.name RETURNING id",
+            (name.strip(), platform, board),
+        ).fetchone()["id"]
+    conn.close()
+    return company_id
+
+
+def list_companies() -> list[dict]:
+    with connect() as conn:
+        rows = conn.execute("SELECT * FROM watch_companies ORDER BY name COLLATE NOCASE").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_company(company_id: int) -> None:
+    with connect() as conn:
+        conn.execute("DELETE FROM watch_companies WHERE id = ?", (company_id,))
+    conn.close()
+
+
+# App settings ---------------------------------------------------------------------------
+
+
+def get_setting(key: str, default: str | None = None) -> str | None:
+    with connect() as conn:
+        row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+    conn.close()
+    return row["value"] if row else default
+
+
+def set_setting(key: str, value: str | None) -> None:
+    with connect() as conn:
+        conn.execute("INSERT INTO app_settings (key, value) VALUES (?, ?) "
+                     "ON CONFLICT (key) DO UPDATE SET value = excluded.value", (key, value))
+    conn.close()

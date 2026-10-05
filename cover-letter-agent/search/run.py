@@ -1,7 +1,8 @@
 """Run saved searches (spec: How a search run works, steps 1 to 6).
 
-Builds the queries, checks the Adzuna allowance first, calls Adzuna, normalizes each
-result and applies the date, salary and exclusion rules. Postings the app hasn't seen
+Builds the queries, checks the Adzuna allowance first, calls Adzuna and reads each
+watch-list company's job board, normalizes each result and applies the date, salary and
+exclusion rules. Postings the app hasn't seen
 before are then labeled and scored by Claude (search/score.py), the work-setting and
 location rules run on Claude's labels, and the new jobs are stored with their fit.
 """
@@ -11,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 import config
-from search import adzuna, places, score
+from search import adzuna, places, score, watchlist
 from search.criteria import SearchCriteria
 from search.normalize import Job, salary_outside
 from storage import jobs as store
@@ -33,13 +34,17 @@ class RunResult:
     dropped: Counter = field(default_factory=Counter)
     errors: list[str] = field(default_factory=list)
     scored: int = 0
+    companies: int = 0  # watch-list boards read
     finished_at: str = ""
 
     def summary(self) -> str:
         parts = [f"{self.new} new job{'s' if self.new != 1 else ''}",
                  f"{self.fetched} found", f"{self.duplicates} already seen"]
         parts += [f"{n} {reason}" for reason, n in self.dropped.most_common()]
-        text = f"{self.calls} Adzuna call{'s' if self.calls != 1 else ''}: " + ", ".join(parts) + "."
+        sources = f"{self.calls} Adzuna call{'s' if self.calls != 1 else ''}"
+        if self.companies:
+            sources += f" and {self.companies} watch-list compan{'ies' if self.companies != 1 else 'y'}"
+        text = sources + ": " + ", ".join(parts) + "."
         if self.scored:
             text += f" Claude checked {self.scored} posting{'s' if self.scored != 1 else ''}."
         return text
@@ -64,9 +69,11 @@ def keep(job: Job, query: adzuna.Query, criteria: SearchCriteria, now: datetime)
     return prefilter(job, criteria, now) or setting_rule(job, query, criteria)
 
 
-def prefilter(job: Job, criteria: SearchCriteria, now: datetime) -> str | None:
-    """The rules that don't need the work setting, checked before anything is sent to Claude."""
-    if job.posted_at and datetime.fromisoformat(job.posted_at) < now - timedelta(days=criteria.max_days_old):
+def prefilter(job: Job, criteria: SearchCriteria, now: datetime, dated: bool = True) -> str | None:
+    """The rules that don't need the work setting, checked before anything is sent to Claude.
+    `dated=False` skips the date rule: watch-list jobs are open now, however long ago they
+    were posted, and the ones already seen aren't shown as new again."""
+    if dated and job.posted_at and datetime.fromisoformat(job.posted_at) < now - timedelta(days=criteria.max_days_old):
         return "older than your date range"
     text = f"{job.title} {job.description}".lower()
     company = job.company.lower()
@@ -125,6 +132,26 @@ def run_searches(searches: list[dict], client=None, now: datetime | None = None,
     # 1-5: collect each posting once, with every search and query that found it.
     candidates: list[Candidate] = []
     index: dict[str, Candidate] = {}
+
+    def collect(job: Job, queries: list[adzuna.Query], criteria: SearchCriteria, search_id: int,
+                dated: bool = True) -> None:
+        result.fetched += 1
+        keys = [f"{job.source}:{job.source_id}" if job.source_id else "", job.dedupe_key]
+        cand = next((index[k] for k in keys if k and k in index), None)
+        if cand:
+            result.duplicates += 1  # the same posting from another query or source
+        else:
+            cand = Candidate(job)
+            candidates.append(cand)
+            index.update({k: cand for k in keys if k})
+        # Rules are checked on this copy; a duplicate can come from another board or place.
+        if reason := prefilter(job, criteria, now, dated) or (None if queries else "outside your cities"):
+            cand.first_drop = cand.first_drop or reason
+        else:
+            if not cand.contexts:
+                cand.job = job  # the first copy that qualifies is the one stored
+            cand.contexts += [(query, criteria, search_id) for query in queries]
+
     for saved in searches:
         criteria = saved["criteria"]
         for query in adzuna.build_queries(criteria):
@@ -136,20 +163,21 @@ def run_searches(searches: list[dict], client=None, now: datetime | None = None,
                 result.errors.append(f"{query.label}: {exc}")
                 continue
             for ad in ads:
-                job = adzuna.to_job(ad)
-                result.fetched += 1
-                keys = [f"{job.source}:{job.source_id}" if job.source_id else "", job.dedupe_key]
-                cand = next((index[k] for k in keys if k and k in index), None)
-                if cand:
-                    result.duplicates += 1  # the same posting from another query
-                else:
-                    cand = Candidate(job)
-                    candidates.append(cand)
-                    index.update({k: cand for k in keys if k})
-                if reason := prefilter(cand.job, criteria, now):
-                    cand.first_drop = cand.first_drop or reason
-                else:
-                    cand.contexts.append((query, criteria, saved["id"]))
+                collect(adzuna.to_job(ad), [query], criteria, saved["id"])
+
+    # Watch list: one call per company, then each job is matched to the searches by title.
+    watched: list[Job] = []
+    for company in store.list_companies():
+        result.companies += 1
+        try:
+            watched += watchlist.fetch_jobs(company, client)
+        except watchlist.WatchError as exc:
+            result.errors.append(f"{company['name']} ({watchlist.PLATFORMS[company['platform']]}): {exc}")
+    for saved in searches:
+        criteria = saved["criteria"]
+        for job in watched:
+            if title := watchlist.matching_title(job.title, criteria.titles):
+                collect(job, watchlist.contexts_for(job, title, criteria), criteria, saved["id"], dated=False)
 
     to_score = []
     for cand in candidates:
@@ -168,7 +196,9 @@ def run_searches(searches: list[dict], client=None, now: datetime | None = None,
     for cand, s in zip(to_score, scores):
         job = cand.job
         if s:
-            job.work_setting, job.fit, job.fit_reason = s.work_setting, s.fit, s.reason
+            # A board that states the setting (Lever, Ashby) is trusted over a reading of the text.
+            job.work_setting = job.extra.get("board_setting") or s.work_setting
+            job.fit, job.fit_reason = s.fit, s.reason
         reasons = [setting_rule(job, query, criteria) for query, criteria, _ in cand.contexts]
         if None not in reasons:
             result.dropped[reasons[0]] += 1
