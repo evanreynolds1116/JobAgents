@@ -36,3 +36,12 @@ def test_key_never_in_repr(app_paths):
 def test_ensure_dirs(app_paths):
     config.ensure_dirs()
     assert config.DATA_DIR.is_dir() and config.OUTPUT_DIR.is_dir()
+
+
+def test_adzuna_keys(app_paths):
+    config.ENV_PATH.write_text(f"ANTHROPIC_API_KEY={VALID_KEY}\nADZUNA_APP_ID=abc123\n")
+    assert config.load_settings().adzuna_status == "missing"
+    config.ENV_PATH.write_text(f"ANTHROPIC_API_KEY={VALID_KEY}\nADZUNA_APP_ID=abc123\nADZUNA_APP_KEY=secretvalue\n")
+    settings = config.load_settings()
+    assert settings.adzuna_status == "ok"
+    assert "secretvalue" not in repr(settings) and "abc123" not in repr(settings)

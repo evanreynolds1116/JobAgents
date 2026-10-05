@@ -19,10 +19,10 @@ DEFAULT = "new_letter"
 
 
 def _page_function(key: str):
-    from ui import applications, detail, new_letter, placeholders, profile, review
+    from ui import applications, detail, find_jobs, new_letter, profile, review
 
     return {
-        "find_jobs": placeholders.find_jobs_page,
+        "find_jobs": find_jobs.find_jobs_page,
         "new_letter": new_letter.new_letter_page,
         "applications": applications.applications_page,
         "profile": profile.profile_page,

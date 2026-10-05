@@ -205,8 +205,10 @@ def profile_page() -> None:
 
         settings = config.load_settings()
         with st.container(border=True, key="card_settings"):
-            a, b = st.columns(2)
+            a, b, c = st.columns(3)
             a.caption("Claude API key")
             a.markdown("**Set in .env**" if settings.key_status == "ok" else "**Not set**")
-            b.caption("Model")
-            b.markdown(f"`{settings.model}`")
+            b.caption("Adzuna API key")
+            b.markdown("**Set in .env**" if settings.adzuna_status == "ok" else "**Not set**")
+            c.caption("Model")
+            c.markdown(f"`{settings.model}`")

@@ -1,7 +1,7 @@
 """SQLite schema and connection for data/app.db.
 
-Tables follow the spec's Data & storage section. Phase 2 and 3 tables
-(saved_answers, filled_answers, saved_searches, jobs) are added in their own milestones.
+Tables follow the spec's Data & storage section (Phase 3: saved_searches, jobs). Phase 2 tables
+(saved_answers, filled_answers) are added in their own milestones.
 """
 
 import json
@@ -44,6 +44,48 @@ CREATE TABLE IF NOT EXISTS drafts (
     resume_hash     TEXT,
     created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')),
     UNIQUE (application_id, version)
+);
+
+-- Phase 3: job search ---------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS saved_searches (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    name           TEXT NOT NULL,
+    criteria_json  TEXT NOT NULL,
+    created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')),
+    last_run_at    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS jobs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    dedupe_key        TEXT NOT NULL UNIQUE,  -- company | title | location, normalized
+    source            TEXT NOT NULL,         -- 'adzuna' (watch-list sources come in Milestone 12)
+    source_id         TEXT,
+    search_id         INTEGER REFERENCES saved_searches (id) ON DELETE SET NULL,
+    title             TEXT,
+    company           TEXT,
+    location          TEXT,
+    work_setting      TEXT NOT NULL DEFAULT 'unknown'
+                      CHECK (work_setting IN ('remote', 'hybrid', 'onsite', 'unknown')),
+    salary_min        REAL,
+    salary_max        REAL,
+    salary_estimated  INTEGER NOT NULL DEFAULT 0,
+    posted_at         TEXT,
+    apply_url         TEXT,
+    description       TEXT,
+    status            TEXT NOT NULL DEFAULT 'new'
+                      CHECK (status IN ('new', 'saved', 'dismissed', 'applying')),
+    first_seen_at     TEXT NOT NULL,
+    last_seen_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_source ON jobs (source, source_id);
+
+CREATE TABLE IF NOT EXISTS api_usage (
+    day      TEXT NOT NULL,
+    service  TEXT NOT NULL,
+    calls    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, service)
 );
 """
 

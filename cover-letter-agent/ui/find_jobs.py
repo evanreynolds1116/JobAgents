@@ -1,0 +1,209 @@
+"""Find jobs screen: saved searches, run now, and the results table (Milestone 10).
+
+Fit scores and sorting come in Milestone 11; Start letter, the schedule and the
+company watch list in Milestone 12.
+"""
+
+from datetime import datetime
+from html import escape
+
+import streamlit as st
+
+import config
+from search import adzuna, run
+from search.criteria import DATE_OPTIONS, SETTING_LABELS, SETTINGS, City, SearchCriteria
+from search.normalize import salary_label
+from storage import jobs as store
+from ui import dates
+from ui.style import muted
+
+TABS = {"new": "New", "saved": "Saved", "dismissed": "Dismissed"}
+
+
+def posted_label(stamp: str | None, now: datetime | None = None) -> str:
+    if not stamp:
+        return "Date not given"
+    days = ((now or datetime.now()).date() - datetime.fromisoformat(stamp).date()).days
+    return "Today" if days <= 0 else ("1 day ago" if days == 1 else f"{days} days ago")
+
+
+def last_run_label(stamp: str | None) -> str:
+    """'today at 7:52 AM', 'yesterday', 'on Sep 28' or 'never'."""
+    if not stamp:
+        return "never"
+    friendly = dates.friendly(stamp)
+    if friendly.startswith("Today, "):
+        return "today at " + friendly.removeprefix("Today, ")
+    return "yesterday" if friendly == "Yesterday" else f"on {friendly}"
+
+
+def _lines(text: str) -> list[str]:
+    return [part.strip() for line in (text or "").splitlines() for part in line.split(",") if part.strip()]
+
+
+def find_jobs_page() -> None:
+    settings = config.load_settings()
+    searches = store.list_searches()
+    last_run = max((s["last_run_at"] for s in searches if s["last_run_at"]), default=None)
+
+    head, actions = st.columns([3, 2], vertical_alignment="bottom")
+    with head:
+        st.title("Find jobs")
+        counts = store.count_jobs()
+        muted(f"Last run {last_run_label(last_run)} · "
+              f"{counts['new']} new posting{'s' if counts['new'] != 1 else ''}")
+    with actions, st.container(horizontal=True, horizontal_alignment="right"):
+        if st.button("Edit searches"):
+            st.session_state.fj_editing = not st.session_state.get("fj_editing", False)
+            st.rerun()
+        can_run = bool(searches) and settings.adzuna_status == "ok"
+        if st.button("Run search now", type="primary", disabled=not can_run):
+            _run(searches)
+
+    _messages()
+    if settings.adzuna_status != "ok":
+        st.info("**Add your Adzuna keys to search.** Get a free app ID and key at "
+                "[developer.adzuna.com/signup](https://developer.adzuna.com/signup), then add "
+                "`ADZUNA_APP_ID=` and `ADZUNA_APP_KEY=` lines to `.env`. You can set up searches now.")
+
+    if st.session_state.get("fj_editing") or not searches:
+        _editor(searches)
+    for saved in searches:
+        _search_card(saved)
+    if searches:
+        _results()
+
+
+def _messages() -> None:
+    if flash := st.session_state.pop("fj_flash", None):
+        kind, text = flash
+        getattr(st, kind)(text)
+    for error in st.session_state.pop("fj_errors", []):
+        st.warning(error)
+
+
+def _run(searches: list[dict]) -> None:
+    try:
+        with st.spinner(f"Searching Adzuna ({run.planned_calls(searches)} calls)…"):
+            result = run.run_searches(searches)
+    except (run.UsageLimit, adzuna.AdzunaError) as exc:
+        st.session_state.fj_flash = ("error", str(exc))
+    else:
+        st.session_state.fj_flash = ("success", result.summary())
+        st.session_state.fj_errors = result.errors
+    st.rerun()
+
+
+def _search_card(saved: dict) -> None:
+    criteria: SearchCriteria = saved["criteria"]
+    with st.container(border=True, key=f"card_search_{saved['id']}"):
+        title, usage = st.columns([3, 2], vertical_alignment="center")
+        title.subheader(f"Saved search: {saved['name']}", anchor=False)
+        usage.caption(f"Adzuna calls today: {store.calls_today('adzuna')} of {run.DAILY_LIMIT} · "
+                      f"this search uses {len(adzuna.build_queries(criteria))}")
+        st.markdown("<br>".join(f'<span class="ja-muted">{escape(label)}</span>&nbsp;&nbsp;'
+                                f'{escape(value).replace("$", "&#36;")}'  # keep $ from becoming math
+                                for label, value in criteria.summary()), unsafe_allow_html=True)
+
+
+def _editor(searches: list[dict]) -> None:
+    with st.container(border=True, key="card_search_editor"):
+        st.subheader("Edit searches" if searches else "Set up a search", anchor=False)
+        options = {s["id"]: s["name"] for s in searches}
+        choice = st.selectbox("Search", [None, *options], format_func=lambda i: options.get(i, "New search"),
+                              key="fj_edit_choice") if searches else None
+        current = next((s for s in searches if s["id"] == choice), None)
+        c: SearchCriteria = current["criteria"] if current else SearchCriteria()
+        suffix = f"_{choice or 'new'}"
+
+        with st.form(f"fj_form{suffix}", border=False):
+            name = st.text_input("Name", value=current["name"] if current else "", placeholder="Engineering roles")
+            titles = st.text_area("Job titles", value="\n".join(c.titles), height=90,
+                                  placeholder="One per line, e.g. Software Engineer")
+            picked = st.pills("Work setting", SETTINGS, default=c.settings, selection_mode="multi",
+                              format_func=SETTING_LABELS.get)
+            st.caption("Hybrid and on-site jobs must be near one of your cities. Remote jobs can be anywhere in the US.")
+            rows = [{"City": city.name, "Radius (miles)": city.radius_miles} for city in c.cities]
+            cities = st.data_editor(rows or [{"City": "", "Radius (miles)": 25}], num_rows="dynamic",
+                                    width="stretch", key=f"fj_cities{suffix}",
+                                    column_config={"Radius (miles)": st.column_config.NumberColumn(min_value=1,
+                                                                                                   max_value=100)})
+            low, high, posted = st.columns(3)
+            salary_min = low.number_input("Minimum salary ($)", value=c.salary_min or 0, step=5000, min_value=0)
+            salary_max = high.number_input("Maximum salary ($)", value=c.salary_max or 0, step=5000, min_value=0)
+            max_days = posted.selectbox("Posted", list(DATE_OPTIONS), index=list(DATE_OPTIONS).index(c.max_days_old),
+                                        format_func=DATE_OPTIONS.get)
+            st.caption("Leave a salary at 0 for no limit. Postings with no salary are kept and labeled.")
+            ex_companies = st.text_area("Skip these companies (optional)", value="\n".join(c.exclude_companies),
+                                        height=70, placeholder="Staffing agencies, for example")
+            ex_keywords = st.text_area("Skip postings with these words (optional)", value="\n".join(c.exclude_keywords),
+                                       height=70)
+            submitted = st.form_submit_button("Save search", type="primary")
+
+        if submitted:
+            criteria = SearchCriteria(
+                titles=_lines(titles),
+                cities=[City(str(r["City"]).strip(), int(r["Radius (miles)"] or 25))
+                        for r in cities if r.get("City") and str(r["City"]).strip()],
+                settings=list(picked or []),
+                salary_min=int(salary_min) or None,
+                salary_max=int(salary_max) or None,
+                max_days_old=max_days,
+                exclude_companies=_lines(ex_companies),
+                exclude_keywords=_lines(ex_keywords),
+            )
+            problems = criteria.problems() + ([] if name.strip() else ["Give the search a name."])
+            if problems:
+                for problem in problems:
+                    st.error(problem)
+            else:
+                store.save_search(name, criteria, current["id"] if current else None)
+                st.session_state.fj_editing = False
+                st.session_state.fj_flash = ("success", f"Saved “{name.strip()}”.")
+                st.rerun()
+        if current and st.button("Delete this search", key=f"fj_delete{suffix}"):
+            store.delete_search(current["id"])
+            st.session_state.fj_flash = ("success", f"Deleted “{current['name']}”.")
+            st.rerun()
+
+
+def _results() -> None:
+    counts = store.count_jobs()
+    top, toggle = st.columns([3, 2], vertical_alignment="center")
+    with top:
+        tab = st.segmented_control("Show", list(TABS), default="new", key="fj_tab",
+                                   format_func=lambda s: f"{TABS[s]} ({counts[s]})", label_visibility="collapsed")
+    hide = toggle.toggle("Hide jobs with no salary listed", key="fj_hide_no_salary")
+    jobs = store.list_jobs(tab or "new", hide_no_salary=hide)
+
+    with st.container(border=True, key="card_job_list"):
+        widths = [3.2, 2, 1.5, 1.3, 2]
+        for col, label in zip(st.columns(widths), ["Role", "Location", "Salary", "Posted", ""]):
+            col.caption(label)
+        if not jobs:
+            st.caption("Nothing here yet." if (tab or "new") != "new" else
+                       "No new postings. Run the search to look for more.")
+        for job in jobs:
+            role, where, pay, when, actions = st.columns(widths, vertical_alignment="center")
+            title = escape(job["title"] or "Untitled")
+            if job["apply_url"]:
+                title = f'<a href="{escape(job["apply_url"])}" target="_blank">{title}</a>'
+            role.markdown(f"**{title}**  \n"
+                          f'<span class="ja-muted">{escape(job["company"] or "")} · via Adzuna</span>',
+                          unsafe_allow_html=True)
+            setting = "Unknown: check posting" if job["work_setting"] == "unknown" else SETTING_LABELS[job["work_setting"]]
+            where.markdown(f"{escape(job['location'] or 'Remote (US)')}  \n"
+                           f'<span class="ja-muted">{setting}</span>', unsafe_allow_html=True)
+            pay.markdown(salary_label(job).replace("$", r"\$"))  # two $ signs would render as math
+            when.markdown(posted_label(job["posted_at"]))
+            with actions, st.container(horizontal=True):
+                if job["status"] == "new":
+                    if st.button("Save", key=f"fj_save_{job['id']}"):
+                        store.set_status(job["id"], "saved")
+                        st.rerun()
+                    if st.button("Dismiss", key=f"fj_dismiss_{job['id']}"):
+                        store.set_status(job["id"], "dismissed")
+                        st.rerun()
+                elif st.button("Move to New", key=f"fj_restore_{job['id']}"):
+                    store.set_status(job["id"], "new")
+                    st.rerun()

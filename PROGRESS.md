@@ -15,9 +15,9 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 5. Export, history and evaluation
-- **Next step:** User scores `output/eval/2026-10-01_133720/scores.csv` and pastes LinkedIn postings 09 and 10 for the final two runs
-- **Last updated:** 2026-10-01
+- **Current milestone:** 10. Saved searches and Adzuna (5 is still waiting on your scores and postings 09–10)
+- **Next step:** Decide how to handle city results Adzuna returns outside the radius (see Blockers), and run a live search with a salary range; separately, score the Milestone 5 evaluation and paste postings 09–10
+- **Last updated:** 2026-10-05
 
 ## Build order
 
@@ -30,7 +30,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 3 | Fetch and draft | 1. Cover letter | Done |
 | 4 | Verify, review and approve | 1. Cover letter | Done |
 | 5 | Export, history and evaluation | 1. Cover letter | In progress (awaiting the quality evaluation) |
-| 10 | Saved searches and Adzuna | 3. Job search | Not started |
+| 10 | Saved searches and Adzuna | 3. Job search | In progress (live check run 2026-10-05; radius and salary items open) |
 | 11 | Filtering and fit scoring | 3. Job search | Not started |
 | 12 | Hand-off and schedule | 3. Job search | Not started |
 | 6 | Application profile | 2. Application | Not started |
@@ -72,10 +72,10 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 ### Phase 3: Job search agent
 
 **Milestone 10. Saved searches and Adzuna**
-- [ ] A search for 2 titles × 2 cities over the last 3 days returns results with no duplicates
-- [ ] Location rule: hybrid and on-site jobs outside the cities' radius are excluded; remote jobs from anywhere in the US are included (one nationwide remote query per title)
-- [ ] Date-posted and salary filters work
-- [ ] Adzuna usage is tracked and the app pauses before the daily limit (250 calls)
+- [x] A search for 2 titles × 2 cities over the last 3 days returns results with no duplicates (live run 2026-10-05: 43 jobs stored, 0 duplicates, 12 cross-query repeats merged)
+- [ ] Location rule: hybrid and on-site jobs outside the cities' radius are excluded; remote jobs from anywhere in the US are included (one nationwide remote query per title) (live: remote side works, 69 non-remote nationwide results dropped; but Adzuna returned one Morristown, TN job, about 39 mi from Knoxville, for a 25 mi search)
+- [ ] Date-posted and salary filters work (live: date filter works, 22 results older than 3 days dropped and none stored; salary range not yet tried live)
+- [x] Adzuna usage is tracked and the app pauses before the daily limit (250 calls)
 
 **Milestone 11. Filtering and fit scoring**
 - [ ] On 20 hand-labeled postings, at least 17 get the right work setting
@@ -154,13 +154,21 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-01 | "Your answers" tab on the detail page is a placeholder until Phase 2 | Filled answers come from the application agent | n/a |
 | 2026-10-01 | `scripts/eval.py` reads a manifest (`tests/fixtures/real/postings.json`, gitignored) with expected company and title, optional notes and a weak-match flag; asks before spending money unless `--yes`; writes `report.md`, per-posting letters and verifier reports, and `scores.csv` for the judgment calls to `output/eval/<date-time>/` | Spec: run all 10, save drafts and verifier reports side by side; the manifest makes results comparable run to run | n/a |
 | 2026-10-01 | Automatic fix-up pass after step 5: if verify flags unsupported claims, one call (`agent/prompts/fix_claims.md`, effort `low`) rewrites each to say only what the sources support or removes it, leaving everything else word for word; then verify runs again. At most once per draft, and never on your own edits. Anything still unsupported stays flagged for review | First evaluation: 5 of 6 letters had small embellishments, against the spec's goal of zero unsupported claims. Adds about 30–40 seconds to letters that need it | Yes (user chose option a) |
+| 2026-10-01 | Job search code lives in a new `search/` package (`criteria.py`, `adzuna.py`, `normalize.py`, `run.py`) with storage in `storage/jobs.py`; tables `saved_searches`, `jobs` and `api_usage` | Spec names the tables but no folder for Phase 3 code (Phase 2 gets `apply/`) | n/a |
+| 2026-10-01 | Adzuna queries use `title_only=<title>` (so results have the title in their title) with `where` + `distance` (miles converted to km) for each city, and `title_only=<title>` + `what=remote` with no location for the nationwide remote query. One page of 50 results per query, sorted by date, `max_days_old` 1/3/7. With a salary range set, `salary_min`/`salary_max` are sent with `salary_include_unknown=1` so postings without a salary are kept and labeled | Parameter names checked against Adzuna's published API spec; matches the spec's query plan and sizing (3 titles × 3 = 9 calls) | n/a |
+| 2026-10-01 | Until Milestone 11 adds Claude's classification, the work setting is read from the posting text (hybrid / remote / on-site keywords, else Unknown). City-query results are trusted to be within the radius (Adzuna applies `distance`); nationwide results are kept only if labeled remote | Spec's location rule; the city check needs no geocoding service | n/a |
+| 2026-10-01 | Duplicate key: company (minus Inc., LLC and similar), title and city, lowercased with punctuation removed; remote jobs use "remote" as the place. A repeat from the same source ID also counts as seen. Known jobs keep their status (a dismissed job isn't shown as new again) | Spec: same company, title and location becomes one record; seen jobs aren't new again | n/a |
+| 2026-10-01 | Adzuna allowance: the run is refused before any call if it would pass 250 calls today or 2,500 this month. Calls are counted per day, including failed ones. A failed query is reported and the rest still run | Spec: track usage and pause before the daily limit | n/a |
+| 2026-10-01 | Find jobs screen per the mockup, minus the Fit column (Milestone 11) and Start letter (Milestone 12). Job titles link to the posting; Save / Dismiss / Move to New change the job's status | Milestone 10 scope | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
 
 - [ ] Confirm the defaults listed in the spec's "Open questions & defaults assumed" table with the user
 - [ ] Get a writing sample (for example, a past cover letter) from the user for the profile
-- [ ] User to create API keys: Anthropic (needed from milestone 1), Adzuna (needed from milestone 10)
+- [x] Adzuna keys added to `cover-letter-agent/.env` (done by 2026-10-05). Anthropic key: done
+- [ ] Adzuna's `distance` isn't exact: a 25 mi Knoxville search returned an Accenture job in Morristown, TN (about 39 mi away). Options: (a) accept it, since it's close; (b) check each city result's distance using the latitude and longitude Adzuna sends; (c) drop results from counties not in a list kept for each city
+- [ ] Run a live search with a salary range to finish Milestone 10's salary item (38 of 43 live results had Adzuna-estimated salaries, labeled as estimates)
 - [x] Fonts: bundle locally (approved 2026-10-01)
 - [x] Approve or change the "Pending" rows in Decisions & deviations (all approved 2026-10-01)
 - [x] Git repository initialized at the workspace root (2026-10-01); first commit pushed to github.com/evanreynolds1116/JobAgents (`main`)
@@ -178,6 +186,20 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-05 (Milestone 10, live Adzuna check)
+- Ran the live check with a temporary database (scratchpad only; app data untouched): Software Engineer and Backend Engineer; Nashville, TN and Knoxville, TN (25 mi); remote + hybrid; last 3 days; no salary range. The 6 calls were then added to the app's Adzuna usage count. The real `app.db` got the new Milestone 10 tables (`saved_searches`, `jobs`, `api_usage`) from `init_db`, which the app also runs on start-up, and was backed up first.
+- Results: 6 calls, no errors. 147 found: 43 new, 12 repeats across queries, 69 non-remote results from the nationwide queries dropped, 22 older than 3 days, 1 on-site. Results per query: Software Engineer had 50 near Nashville, 3 near Knoxville and 50 remote; Backend Engineer had 2 near Nashville, 0 near Knoxville and 42 remote.
+- Stored: 0 duplicates; all posted 2026-10-02 to 2026-10-05. Work settings: 13 remote, 1 hybrid and 29 unknown (Milestone 11's classifier will sort out the unknowns). City results were in Nashville (26), La Vergne (1) and Knoxville (2), plus one Morristown result outside the radius (see Blockers). Every result had a salary: 38 Adzuna estimates and 5 from the posting.
+- Tests: 233 passed, 1 skipped.
+- Next: decide on the radius issue; run a live search with a salary range.
+
+### 2026-10-01 (Milestone 10)
+- Worked on: Milestone 10, saved searches and Adzuna (Milestone 5 still open for the user's scores and postings 09–10)
+- Completed: Adzuna parameters checked against Adzuna's published OpenAPI spec. Saved search criteria (titles, cities with radius, work settings, salary range, date posted, excluded companies and keywords) with validation. Query builder (one query per title per city plus one nationwide remote query per title). Normalization, work-setting labels from the text, duplicate removal across queries, sources and runs. Date, salary, exclusion and location rules. Adzuna usage tracking with the daily and monthly limits. Find jobs screen: last run, Edit searches, Run search now, saved-search card with "Adzuna calls today", New / Saved / Dismissed with counts, hide-no-salary toggle, Save / Dismiss / Move to New. Adzuna keys in `.env` and `.env.example`, and their status on Profile & resume.
+- Found while checking the screen: salaries like "$95k–$120k" rendered as math formatting; fixed.
+- Tests: 233 passed, 1 skipped. New: `test_search.py` (acceptance scenario with made-up Adzuna responses: 2 titles × 2 cities, last 3 days; parameters; re-runs; date filter; allowance; errors) and `test_find_jobs_ui.py`.
+- Next: Adzuna keys for the live check.
 
 ### 2026-10-01 (Milestone 5, second evaluation)
 - Re-ran `scripts/eval.py` on postings 01–08 with the automatic fix-up (`output/eval/2026-10-01_133720/`). Results: 8 of 8 correct company and title; 8 of 8 with zero unsupported claims (2 of 8 before the fix-up, so the fix-up resolved 6 letters with 1–2 claims each); 8 of 8 with no banned phrases; 8 of 8 within 250–400 words (363–398); 1–4 style flags per letter left for review; 72–130 seconds per letter (average 105).

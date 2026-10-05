@@ -1,9 +1,9 @@
 """Settings loaded from .env, plus the app's folder locations.
 
-The API key is never logged or shown; only its status is exposed to the UI.
+API keys are never logged or shown; only their status is exposed to the UI.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import dotenv_values
@@ -22,6 +22,13 @@ KEY_PREFIX = "sk-ant-"
 class Settings:
     api_key: str | None
     model: str
+    adzuna_app_id: str | None = field(default=None, repr=False)
+    adzuna_app_key: str | None = field(default=None, repr=False)
+
+    @property
+    def adzuna_status(self) -> str:
+        """'missing' unless both Adzuna values are set (needed for job search only)."""
+        return "ok" if self.adzuna_app_id and self.adzuna_app_key else "missing"
 
     @property
     def key_status(self) -> str:
@@ -33,7 +40,7 @@ class Settings:
         return "ok"
 
     def __repr__(self) -> str:  # keep the key out of logs and tracebacks
-        return f"Settings(api_key=<{self.key_status}>, model={self.model!r})"
+        return f"Settings(api_key=<{self.key_status}>, model={self.model!r}, adzuna=<{self.adzuna_status}>)"
 
 
 def load_settings(env_path: Path | None = None) -> Settings:
@@ -42,7 +49,12 @@ def load_settings(env_path: Path | None = None) -> Settings:
     values = dotenv_values(env_path) if env_path.exists() else {}
     api_key = (values.get("ANTHROPIC_API_KEY") or "").strip() or None
     model = (values.get("ANTHROPIC_MODEL") or "").strip() or DEFAULT_MODEL
-    return Settings(api_key=api_key, model=model)
+    return Settings(
+        api_key=api_key,
+        model=model,
+        adzuna_app_id=(values.get("ADZUNA_APP_ID") or "").strip() or None,
+        adzuna_app_key=(values.get("ADZUNA_APP_KEY") or "").strip() or None,
+    )
 
 
 def ensure_dirs() -> None:

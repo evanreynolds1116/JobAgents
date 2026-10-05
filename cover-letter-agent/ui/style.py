@@ -61,9 +61,3 @@ def footnote() -> None:
 
 def muted(text: str) -> None:
     st.markdown(f'<p class="ja-muted">{text}</p>', unsafe_allow_html=True)
-
-
-def coming_soon(what: str, milestone: str) -> None:
-    with st.container(border=True, key="card_coming_soon"):
-        st.markdown(f"**{what}** arrives in {milestone}.")
-        st.caption("This page is a placeholder for now.")
