@@ -8,7 +8,7 @@ from html import escape
 
 import streamlit as st
 
-from storage import db
+from storage import db, filled
 from ui import dates, nav
 from ui.applications import status_label
 
@@ -84,6 +84,8 @@ def _actions(app: dict, drafts: list[dict]) -> None:
     with st.container(horizontal=True):
         if drafts and st.button("Open letter", type="primary"):
             nav.go("review", app=app_id)
+        if app["status"] == "approved" and st.button("Fill application"):
+            nav.go("apply", app=app_id)
         if app["status"] in ("draft", "approved") and st.button("Mark as submitted"):
             db.mark_submitted(app_id)
             st.session_state.dt_flash = "Marked as submitted today. Good luck!"
@@ -119,9 +121,18 @@ def _tabs(app: dict, drafts: list[dict]) -> None:
         else:
             st.markdown("No letter for this application.")
     with answers, st.container(border=True, key="card_answers"):
-        st.markdown("**No form answers yet.**")
-        st.caption("The application agent (Phase 2) records the answers it fills into application forms here, "
-                   "including your edits.")
+        rows = filled.for_application(app["id"])
+        if not rows:
+            st.markdown("**No form answers yet.**")
+            st.caption("When the application agent fills this job's form, every field's final value, including "
+                       "your edits, is recorded here.")
+        else:
+            from ui.apply import SOURCE, STATUS
+            st.caption(f"Recorded {dates.full(rows[-1]['filled_at'])}, including your edits in the browser.")
+            st.dataframe([{"Page": r["page"], "Field": r["field_label"], "Value": r["value"] or "",
+                           "Source": SOURCE.get(r["source"], r["source"] or ""),
+                           "Status": STATUS.get(r["status"], r["status"] or "")} for r in rows],
+                         hide_index=True, width="stretch")
 
 
 def _notes(app: dict) -> None:

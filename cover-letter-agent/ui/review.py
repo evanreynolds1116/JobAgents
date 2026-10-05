@@ -266,6 +266,10 @@ def _export_row(app: dict) -> None:
     with st.container(horizontal=True):
         want_docx = st.button("Export .docx", disabled=not unlocked, key="rv_export_docx")
         want_pdf = st.button("Export PDF", disabled=not unlocked, key="rv_export_pdf")
+        if st.button("Fill application", disabled=not unlocked, key="rv_fill",
+                     help="Open the job's application form in Chrome and fill it from your profile. "
+                          "The agent never submits."):
+            nav.go("apply", app=app["id"])
     if not unlocked:
         st.caption("Export unlocks after you approve.")
         return

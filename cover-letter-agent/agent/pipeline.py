@@ -21,7 +21,7 @@ PROMPTS = Path(__file__).resolve().parent / "prompts"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_TOKENS = 16_000
 EFFORT = {"parse": "low", "match": "low", "draft": "medium", "humanize": "low", "verify": "medium",
-          "fix": "low", "trim": "low", "score": "low"}
+          "fix": "low", "trim": "low", "score": "low", "map": "medium"}
 
 
 class PipelineError(Exception):

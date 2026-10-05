@@ -92,6 +92,17 @@ CREATE TABLE IF NOT EXISTS watch_companies (
     UNIQUE (platform, board)
 );
 
+CREATE TABLE IF NOT EXISTS filled_answers (  -- what ended up in each application form (Phase 2)
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    application_id  INTEGER NOT NULL REFERENCES applications (id) ON DELETE CASCADE,
+    page            INTEGER NOT NULL DEFAULT 1,
+    field_label     TEXT NOT NULL,
+    value           TEXT,                -- the final value, including your edits; JSON list for multi-choice
+    source          TEXT,                -- profile, application_answers, saved_answer, resume, cover_letter, you
+    status          TEXT,                -- filled, review, needs_you, left_for_you
+    filled_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime'))
+);
+
 CREATE TABLE IF NOT EXISTS saved_answers (  -- answers to past application questions (Phase 2)
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     question      TEXT NOT NULL,

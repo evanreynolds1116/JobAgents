@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 7. Greenhouse and Lever filler (next build); 11 is waiting on your labels, 5 on your scores
-- **Next step:** Fill in your application answers on Profile & resume (needed before Milestone 7 can fill forms); label the Milestone 11 sheet and score the Milestone 5 evaluation; then start Milestone 7
+- **Current milestone:** 7. Greenhouse and Lever filler (built; live check on 5 real postings needs you); 11 is waiting on your labels, 5 on your scores
+- **Next step:** Fill in your application answers on Profile & resume, then pick 5 real Greenhouse or Lever postings for the Milestone 7 live check (see Blockers); separately, label the Milestone 11 sheet and score the Milestone 5 evaluation
 - **Last updated:** 2026-10-05
 
 ## Build order
@@ -34,7 +34,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 11 | Filtering and fit scoring | 3. Job search | In progress (live run done; waiting on your labels) |
 | 12 | Hand-off and schedule | 3. Job search | Done (2026-10-05) |
 | 6 | Application profile | 2. Application | Done (2026-10-05) |
-| 7 | Greenhouse and Lever filler | 2. Application | Not started |
+| 7 | Greenhouse and Lever filler | 2. Application | In progress (built and tested; live check on 5 real postings pending) |
 | 8 | General forms and answer learning | 2. Application | Not started |
 | 9 | Multi-step platforms (stretch) | 2. Application | Not started |
 
@@ -94,10 +94,10 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Saved answers to past questions are stored and reusable (add, edit, delete on Profile & resume; `find_similar` finds the closest saved question for Milestone 8, and `record_use` counts reuse)
 
 **Milestone 7. Greenhouse and Lever filler**
-- [ ] On 5 real Greenhouse or Lever postings, at least 90% of non-sensitive fields are filled correctly
-- [ ] The agent reaches the right form from Adzuna links and pasted links
-- [ ] The agent never submits (code-level block verified by test)
-- [ ] Every field's final value, including the user's edits, is saved to the application's record and shown on its detail page
+- [ ] On 5 real Greenhouse or Lever postings, at least 90% of non-sensitive fields are filled correctly (needs your application answers and 5 postings; field reading checked read-only on a real Greenhouse and a real Lever form, all labels correct)
+- [ ] The agent reaches the right form from Adzuna links and pasted links (pasted links: tests and a real Ashby link; Adzuna: works in tests, but the real Adzuna site answers the app's browser with HTTP 403 "Access Denied", so the agent stops and asks for the company's link; see Decisions)
+- [x] The agent never submits (code-level block verified by test: every click goes through `guard.safe_click`, which refuses submit-type controls and Submit/Apply/Send/Accept buttons; tested on Greenhouse- and Lever-shaped forms, a cookie banner and a decoy Apply button)
+- [x] Every field's final value, including the user's edits, is saved to the application's record and shown on its detail page (`filled_answers`; detail page "Your answers" tab; values that differ from what the agent entered are recorded as yours)
 
 **Milestone 8. General forms and answer learning**
 - [ ] On 5 postings from other platforms, every required field is filled or clearly flagged
@@ -177,10 +177,19 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-05 | Watch-list jobs skip the date rule: every open job that matches a search's titles, locations, salary and exclusions is collected; jobs already seen aren't new again, so after the first run only newly posted ones appear | Spec: watch-list jobs filtered by posted date. Boards keep jobs open for months, and every match on 5 real boards was older than 3 days | Yes (2026-10-05) |
 | 2026-10-05 | Application profile in `data/application_profile.yaml` (`storage/application_profile.py`): street, apartment, city, state, ZIP, country; authorized to work in the US and need sponsorship (Yes / No); willing to relocate (Open to it / Yes / No); earliest start; how you usually hear about jobs; optional salary answer. Every choice has "Not set", and blank or Not set means the agent leaves the question for you. Edited on an "Application answers" card on Profile & resume and saved with Save changes | Spec's application profile fields and the mockup's Application answers card; the address is split because forms ask for it in parts | n/a |
 | 2026-10-05 | `saved_answers` table: question, a normalized question key (unique, so rewordings in case or punctuation replace rather than duplicate), answer, times used, created, updated and last used. Similar questions are matched by the higher of word overlap (ignoring filler words) and character similarity, with a threshold of 0.6. Managed on a "Saved answers to past questions" card | Spec: offered for reuse on similar questions; Milestone 8 will offer them while filling forms | n/a |
+| 2026-10-05 | Playwright 1.63 drives your installed Google Chrome (`channel="chrome"`) with the app's own persistent profile in `data/browser_profile` (gitignored); no separate browser download | User approved the install; the spec's dedicated Chrome profile | Yes (2026-10-05) |
+| 2026-10-05 | Each filling session runs in its own worker thread (Playwright must stay on the thread that started it; Streamlit reruns on others). The Fill application screen sends it commands (confirm, resume, continue, stop, close) and refreshes every 1.5 seconds while it works. One session at a time. The browser stays open at the end so you can submit | Streamlit and Playwright's threading | n/a |
+| 2026-10-05 | Code-level rules: every agent click goes through `apply/guard.safe_click`, which refuses submit-type controls and anything labeled submit, apply, send, finish, confirm or accept; text is entered with `fill` (never Enter). Demographic/EEO questions (race, ethnicity, gender, pronouns, sexual orientation, veteran, disability, self-identification), attestations, certifications and consent questions are never sent to Claude and never filled. Single checkboxes are left for you. Choices must be one of the field's options; salary only from a saved salary answer; text answers not found in their source are filled but marked for review | Spec guardrails, enforced independently of the model | n/a |
+| 2026-10-05 | Field mapping: one Claude call per page (`agent/prompts/map_fields.md`, effort `medium`) with the fields, profile, application answers, saved answers, resume and which files exist. Free-text screening questions are left for you until Milestone 8 drafts them | Spec: Claude maps fields; drafting screening answers is Milestone 8 | n/a |
+| 2026-10-05 | Finding the form: the browser follows the link; navigation to LinkedIn, Indeed, Glassdoor, Jobright and HiringCafe is blocked (and a page that redirects there stops before it's read); on a posting page the Apply *link* is opened by its address (buttons are never pressed); embedded Greenhouse forms are opened directly. Real Adzuna links answer the app's automated browser with HTTP 403 ("suspicious behaviour"), so the agent stops, says so, and the Fill application screen offers a box for the company's own link | The app doesn't get around bot protection; this changes the "reaches the right form from Adzuna links" acceptance item | Pending |
+| 2026-10-05 | Milestone 7 starts only from an application with an approved letter (Fill application on the review and detail screens). The approved letter is uploaded as a PDF (a .docx if no PDF maker is installed) and pasted into cover-letter text boxes | Spec: Fill application is from an approved letter; Fill without cover letter is Milestone 8 | n/a |
 | 2026-10-01 | Find jobs screen per the mockup, minus the Fit column (Milestone 11) and Start letter (Milestone 12). Job titles link to the posting; Save / Dismiss / Move to New change the job's status | Milestone 10 scope | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
+
+- [ ] Milestone 7 live check: fill in your application answers, then choose 5 real Greenhouse or Lever postings you'd consider applying to. Each needs an application with an approved letter (about $0.10 per letter, a few cents per form mapping). The agent then fills each form in a visible Chrome window with your real details, never submitting; you watch, and we count fields filled correctly (target 90% of non-sensitive fields)
+- [ ] Approve or change the Adzuna-link decision: Adzuna blocks the app's browser (HTTP 403), so for Adzuna jobs you paste the company's link on the Fill application screen
 
 - [x] Watch-list dates: the date rule is skipped for watch-list jobs (user's choice, 2026-10-05)
 - [x] Watch list: OnePay and Realm (Ashby) added 2026-10-05 for the live check (you had no preference; both are companies you've applied to). Remove or add more on Profile & resume
@@ -211,6 +220,13 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-05 (Milestone 7, build)
+- Installed Playwright 1.63 (your OK) and confirmed it drives Chrome 154. Probed a real Greenhouse form (Axios) and a real Lever form (Palantir) read-only to learn their structure (saved in the gitignored `tests/fixtures/real/forms/`): Greenhouse uses searchable dropdowns (react-select) for country, location, how-did-you-hear and authorization questions; Lever uses plain inputs and radio and checkbox groups with the question in a wrapper.
+- Built `apply/`: `guard.py` (blocked Submit, sensitive and attestation detection), `extract.py` (field reading, including opening each dropdown to read its options; correct labels for all 24 Greenhouse and 22 Lever fields on the real forms), `mapping.py` (Claude proposal plus code rules), `fill.py`, `resolve.py`, `session.py` (worker thread), `start.py`. Storage `filled_answers` (`storage/filled.py`). Screen `ui/apply.py` per the mockup; Fill application buttons on review and detail; detail page "Your answers" tab.
+- Found while building: the job-board blocker handed requests to the network and skipped other handlers (fixed); Playwright doesn't route the target of a server redirect, so pages are also checked after loading; an edit dropped a function header (caught by the run).
+- Read-only live checks: a real Ashby link reached its application form; two real Adzuna links were refused with HTTP 403 "Access Denied" (now reported clearly, with a box for the company's link).
+- Tests: 375 passed, 1 skipped. New: `test_apply_rules.py` (sensitive and attestation labels from the real forms, Submit detection, every mapping rule, sensitive fields never sent to Claude), `test_apply_browser.py` (headless offline Chrome on made-up Greenhouse- and Lever-shaped forms: reading, filling, dropdowns and search boxes, outlines, Submit never clicked including a cookie banner, hidden instructions ignored, link resolution for 8 cases, a whole session from an Adzuna link to hand-over with answers recorded, the login pause, the job-board stop), `test_apply_ui.py`.
 
 ### 2026-10-05 (Milestone 6)
 - Built the application profile (`storage/application_profile.py`) and saved answers (`storage/answers.py`, `saved_answers` table), with two new cards on Profile & resume: Application answers (saved with Save changes, included in the unsaved-changes notice, warnings for contradictory authorization and sponsorship answers and malformed US ZIP codes) and Saved answers to past questions (add, edit, delete, times used).

@@ -17,3 +17,6 @@ docx2pdf>=0.1.8
 
 # Milestone 12: daily scheduled run
 apscheduler>=3.11,<4
+
+# Milestone 7: application filler (drives your installed Google Chrome; no browser download)
+playwright>=1.63,<2

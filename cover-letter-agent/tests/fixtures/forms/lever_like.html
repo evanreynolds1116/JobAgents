@@ -1,0 +1,60 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Backend Engineer - Tilt</title></head>
+<body>
+<!-- Made-up form shaped like a Lever application (jobs.lever.co/<company>/<id>/apply). -->
+<div class="cookie-banner"><p>We use cookies.</p>
+  <button type="submit" onclick="window.__cookie = 'accepted'">Accept</button>
+  <button type="submit" onclick="window.__cookie = 'denied'">Deny</button></div>
+<h2>Backend Engineer</h2>
+<form id="application-form" onsubmit="window.__submitted = true; return false;">
+  <ul>
+    <li class="application-question"><label><div class="application-label">Resume/CV<span class="required">✱</span></div>
+      <div class="application-field"><input type="file" name="resume" id="resume-upload-input"> ATTACH RESUME/CV</div></label></li>
+    <li class="application-question"><label><div class="application-label">Full name<span class="required">✱</span></div>
+      <div class="application-field"><input type="text" name="name" required></div></label></li>
+    <li class="application-question"><label><div class="application-label">Email<span class="required">✱</span></div>
+      <div class="application-field"><input type="email" name="email" required></div></label></li>
+    <li class="application-question"><label><div class="application-label">Phone</div>
+      <div class="application-field"><input type="text" name="phone"></div></label></li>
+    <li class="application-question"><label><div class="application-label">Current location<span class="required">✱</span></div>
+      <div class="application-field"><input type="text" name="location" required></div></label></li>
+    <li class="application-question"><label><div class="application-label">Current company</div>
+      <div class="application-field"><input type="text" name="org" value="Old Co"></div></label></li>
+    <li class="application-question"><label><div class="application-label">LinkedIn URL</div>
+      <div class="application-field"><input type="text" name="urls[LinkedIn]"></div></label></li>
+    <li class="application-question custom-question">
+      <div class="application-label">Are you legally authorized to work in the United States?<span class="required">✱</span></div>
+      <div class="application-field"><ul>
+        <li><label><input type="radio" name="cards[a][field0]" value="Yes" required> Yes</label></li>
+        <li><label><input type="radio" name="cards[a][field0]" value="No" required> No</label></li></ul></div></li>
+    <li class="application-question custom-question">
+      <div class="application-label">Will you now or in the future require sponsorship for employment visa status?<span class="required">✱</span></div>
+      <div class="application-field"><ul>
+        <li><label><input type="radio" name="cards[a][field1]" value="Yes" required> Yes</label></li>
+        <li><label><input type="radio" name="cards[a][field1]" value="No" required> No</label></li></ul></div></li>
+    <li class="application-question custom-question">
+      <div class="application-label">Please tell us how you heard about this opportunity.<span class="required">✱</span></div>
+      <div class="application-field"><select name="cards[b][field0]" required>
+        <option value="">Select...</option><option>LinkedIn</option><option>Company website</option>
+        <option>Friend or Family</option><option>Other</option></select></div></li>
+    <li class="application-question custom-question">
+      <div class="application-label">Which languages do you speak? (Check all that apply)</div>
+      <div class="application-field"><ul>
+        <li><label><input type="checkbox" name="cards[c][field0]" value="English"> English</label></li>
+        <li><label><input type="checkbox" name="cards[c][field0]" value="Spanish"> Spanish</label></li>
+        <li><label><input type="checkbox" name="cards[c][field0]" value="French"> French</label></li></ul></div></li>
+    <li class="application-question custom-question">
+      <div class="application-label">Why do you want to work at Tilt?</div>
+      <div class="application-field"><textarea name="cards[d][field0]"></textarea></div></li>
+    <li class="application-question custom-question">
+      <div class="application-label">We may record interviews with an AI notetaker. Do you consent?<span class="required">✱</span></div>
+      <div class="application-field"><ul>
+        <li><label><input type="radio" name="cards[e][field0]" value="yes" required> Yes, I consent</label></li>
+        <li><label><input type="radio" name="cards[e][field0]" value="no" required> No, I do not consent</label></li></ul></div></li>
+    <li class="application-question"><div class="application-label">Gender</div>
+      <div class="application-field"><select name="eeo[gender]"><option value="">Select ...</option>
+        <option>Male</option><option>Female</option><option>Decline to self-identify</option></select></div></li>
+  </ul>
+  <button type="button" id="btn-submit" onclick="window.__submitted = true">SUBMIT APPLICATION</button>
+</form>
+</body></html>
