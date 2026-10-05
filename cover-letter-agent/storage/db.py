@@ -92,6 +92,17 @@ CREATE TABLE IF NOT EXISTS watch_companies (
     UNIQUE (platform, board)
 );
 
+CREATE TABLE IF NOT EXISTS saved_answers (  -- answers to past application questions (Phase 2)
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    question      TEXT NOT NULL,
+    question_key  TEXT NOT NULL UNIQUE,      -- normalized question, so rewordings of case or punctuation match
+    answer        TEXT NOT NULL,
+    times_used    INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')),
+    updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')),
+    last_used_at  TEXT
+);
+
 CREATE TABLE IF NOT EXISTS app_settings (  -- small values such as the daily run time
     key    TEXT PRIMARY KEY,
     value  TEXT

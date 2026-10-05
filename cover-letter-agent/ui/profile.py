@@ -1,14 +1,90 @@
-"""Profile & resume screen (Milestone 2; company watch list, Milestone 12)."""
+"""Profile & resume screen (Milestone 2; company watch list, Milestone 12; application
+answers and saved answers, Milestone 6)."""
+
+from dataclasses import fields
 
 import streamlit as st
 
 import config
 from agent import lint
 from search import watchlist
+from storage import answers as answer_store
+from storage import application_profile as app_store
 from storage import jobs as job_store
 from storage import profile as profile_store
 from storage import resume
 from ui.style import muted
+
+APP_FIELDS = tuple(f.name for f in fields(app_store.ApplicationProfile))
+NOT_SET = "Not set"
+
+
+def _choice(label: str, field: str, options: tuple[str, ...], column, help: str | None = None) -> None:
+    column.selectbox(label, options, key=f"pf_app_{field}", format_func=lambda o: o or NOT_SET, help=help)
+
+
+def _application_answers() -> None:
+    with st.container(border=True, key="card_app_answers"):
+        st.subheader("Application answers", anchor=False)
+        st.caption("The application agent fills these in. It never answers demographic questions or legal "
+                   "attestations. Anything left blank or Not set is left for you to answer on the form.")
+        a, b = st.columns(2)
+        _choice("Authorized to work in the US", "work_authorized", app_store.YES_NO, a)
+        _choice("Need visa sponsorship", "needs_sponsorship", app_store.YES_NO, b,
+                help="Now or in the future, as most forms ask it.")
+        a, b = st.columns(2)
+        _choice("Willing to relocate", "relocation", app_store.RELOCATION, a)
+        b.text_input("Earliest start", key="pf_app_start_date", placeholder="Two weeks after an offer")
+        st.text_input("How you usually hear about jobs", key="pf_app_heard_about", placeholder="Company website")
+        st.text_input("Salary answer (optional)", key="pf_app_salary",
+                      placeholder="Leave blank to answer it yourself each time")
+        st.markdown("**Mailing address**")
+        st.text_input("Street address", key="pf_app_street", placeholder="123 Main St")
+        st.text_input("Apartment, suite, etc. (optional)", key="pf_app_street2")
+        city, state, postal = st.columns([3, 2, 2])
+        city.text_input("City", key="pf_app_city", placeholder="Nashville")
+        state.text_input("State", key="pf_app_state", placeholder="TN")
+        postal.text_input("ZIP code", key="pf_app_postal_code", placeholder="37203")
+        st.text_input("Country", key="pf_app_country")
+
+
+def _save_answer(answer_id: int | None) -> None:
+    suffix = answer_id or "new"
+    try:
+        answer_store.save(st.session_state.get(f"pf_ans_q_{suffix}", ""),
+                          st.session_state.get(f"pf_ans_a_{suffix}", ""), answer_id)
+    except answer_store.AnswerError as exc:
+        st.session_state.pf_ans_msg = ("warning", str(exc))
+        return
+    if answer_id is None:
+        st.session_state.pf_ans_q_new = st.session_state.pf_ans_a_new = ""
+    st.session_state.pf_ans_msg = ("success", "Answer saved.")
+
+
+def _saved_answers() -> None:
+    saved = answer_store.list_answers()
+    with st.container(border=True, key="card_saved_answers"):
+        st.subheader("Saved answers to past questions", anchor=False)
+        st.caption(f"{len(saved)} saved. Answers you've approved for questions on past applications, reused "
+                   "when a form asks something similar.")
+        with st.expander("Manage"):
+            for row in saved:
+                with st.container(border=True, key=f"pf_ans_row_{row['id']}"):
+                    st.text_input("Question", value=row["question"], key=f"pf_ans_q_{row['id']}")
+                    st.text_area("Answer", value=row["answer"], key=f"pf_ans_a_{row['id']}", height=80)
+                    used, save, delete = st.columns([3, 1, 1], vertical_alignment="center")
+                    used.caption(f"Used {row['times_used']} time{'s' if row['times_used'] != 1 else ''}")
+                    save.button("Save", key=f"pf_ans_save_{row['id']}", on_click=_save_answer, args=(row["id"],))
+                    if delete.button("Delete", key=f"pf_ans_del_{row['id']}"):
+                        answer_store.delete(row["id"])
+                        st.session_state.pf_ans_msg = ("success", "Answer deleted.")
+                        st.rerun()
+            st.markdown("**Add an answer**")
+            st.text_input("Question", key="pf_ans_q_new", placeholder="Why do you want to work here?")
+            st.text_area("Answer", key="pf_ans_a_new", height=80)
+            st.button("Add answer", key="pf_ans_add", on_click=_save_answer, args=(None,))
+            if msg := st.session_state.pop("pf_ans_msg", None):
+                getattr(st, msg[0])(msg[1])
 
 
 def _add_company() -> None:
@@ -70,6 +146,13 @@ def _load_profile_state() -> None:
     for i, sample in enumerate(samples):
         st.session_state[f"pf_sample_{i}"] = sample
     st.session_state.pf_resume_text = resume.load_text()
+    saved_app = app_store.load()
+    for name in APP_FIELDS:
+        st.session_state[f"pf_app_{name}"] = getattr(saved_app, name)
+
+
+def _app_from_state() -> app_store.ApplicationProfile:
+    return app_store.ApplicationProfile(**{n: st.session_state.get(f"pf_app_{n}", "") for n in APP_FIELDS})
 
 
 def _profile_from_state() -> profile_store.Profile:
@@ -81,7 +164,7 @@ def _profile_from_state() -> profile_store.Profile:
 
 
 def _has_unsaved_changes() -> bool:
-    if _profile_from_state() != profile_store.load():
+    if _profile_from_state() != profile_store.load() or _app_from_state() != app_store.load():
         return True
     return st.session_state.get("pf_resume_text", "").strip() != resume.load_text().strip()
 
@@ -91,8 +174,10 @@ def _save_profile() -> None:
     profile_store.save(current)
     st.session_state.pf_country_code = current.country_code  # show "+44", not "44"
     resume.save_text(st.session_state.get("pf_resume_text", ""))
+    answers = _app_from_state()
+    app_store.save(answers)
     st.session_state.pf_flash = ("success", "Saved.")
-    st.session_state.pf_problems = current.problems()
+    st.session_state.pf_problems = current.problems() + answers.problems()
 
 
 def _import_resume() -> None:
@@ -248,6 +333,8 @@ def profile_page() -> None:
                 placeholder="For example: don't mention my career break in 2022.",
             )
 
+        _application_answers()
+        _saved_answers()
         _watch_list()
 
         settings = config.load_settings()

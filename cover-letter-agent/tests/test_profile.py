@@ -219,3 +219,68 @@ def test_watch_list_add_and_remove(app_paths, monkeypatch):
     assert any("Axios" in m.value and "Greenhouse" in m.value for m in at.markdown)
     click(at, "Remove")
     assert job_store.list_companies() == []
+
+
+# --- Application answers and saved answers (Milestone 6) ------------------------------
+
+
+def test_application_answers_persist_and_can_be_edited(app_paths):
+    from storage import application_profile as app_store
+
+    at = open_profile()
+    assert "Application answers" in [s.value for s in at.subheader]
+    assert at.selectbox(key="pf_app_work_authorized").value == ""  # shown as "Not set"
+    at.selectbox(key="pf_app_work_authorized").set_value("Yes")
+    at.selectbox(key="pf_app_needs_sponsorship").set_value("No")
+    at.selectbox(key="pf_app_relocation").set_value("Open to it")
+    for key, value in (("start_date", "Two weeks after an offer"), ("heard_about", "Company website"),
+                       ("salary", "$110,000"), ("street", "123 Main St"), ("street2", "Apt 4"),
+                       ("city", "Nashville"), ("state", "TN"), ("postal_code", "37203")):
+        at.text_input(key=f"pf_app_{key}").input(value)
+    at.run()
+    assert any(c.value == "You have unsaved changes." for c in at.caption)
+    click(at, "Save changes")
+    assert at.success[0].value == "Saved."
+    assert app_store.load() == app_store.ApplicationProfile(
+        street="123 Main St", street2="Apt 4", city="Nashville", state="TN", postal_code="37203",
+        work_authorized="Yes", needs_sponsorship="No", relocation="Open to it",
+        start_date="Two weeks after an offer", salary="$110,000", heard_about="Company website")
+
+    at = open_profile()  # a fresh visit shows what's saved
+    assert at.selectbox(key="pf_app_relocation").value == "Open to it"
+    assert at.text_input(key="pf_app_postal_code").value == "37203"
+    at.selectbox(key="pf_app_relocation").set_value("No")
+    at.text_input(key="pf_app_salary").input("")
+    click(at, "Save changes")
+    edited = app_store.load()
+    assert edited.relocation == "No" and edited.salary == "" and edited.city == "Nashville"
+
+
+def test_application_answer_warnings(app_paths):
+    at = open_profile()
+    at.selectbox(key="pf_app_work_authorized").set_value("No")
+    at.selectbox(key="pf_app_needs_sponsorship").set_value("No")
+    click(at, "Save changes")
+    assert any("not authorized to work in the US" in w.value for w in at.warning)
+
+
+def test_saved_answers_add_edit_delete(app_paths):
+    from storage import answers
+
+    at = open_profile()
+    assert any(c.value.startswith("0 saved.") for c in at.caption)
+    click(at, "Add answer")
+    assert "Add both the question and your answer." in [w.value for w in at.warning]
+    at.text_input(key="pf_ans_q_new").input("Why do you want to work here?")
+    at.text_area(key="pf_ans_a_new").input("I've used your product for years.")
+    click(at, "Add answer")
+    (row,) = answers.list_answers()
+    assert row["answer"] == "I've used your product for years."
+    assert at.text_input(key="pf_ans_q_new").value == ""  # cleared for the next one
+
+    at.text_area(key=f"pf_ans_a_{row['id']}").input("I've used it daily since 2021.")
+    click(at, "Save")
+    assert answers.list_answers()[0]["answer"] == "I've used it daily since 2021."
+    assert any(c.value.startswith("1 saved.") for c in at.caption)
+    click(at, "Delete")
+    assert answers.list_answers() == []

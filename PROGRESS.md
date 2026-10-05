@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** Phase 3 built through 12; 11 is waiting on your labels, 5 on your scores. Next build: Phase 2 (Milestone 6)
-- **Next step:** Label the Milestone 11 sheet and score the Milestone 5 evaluation; then start Milestone 6 (application profile)
+- **Current milestone:** 7. Greenhouse and Lever filler (next build); 11 is waiting on your labels, 5 on your scores
+- **Next step:** Fill in your application answers on Profile & resume (needed before Milestone 7 can fill forms); label the Milestone 11 sheet and score the Milestone 5 evaluation; then start Milestone 7
 - **Last updated:** 2026-10-05
 
 ## Build order
@@ -33,7 +33,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 10 | Saved searches and Adzuna | 3. Job search | Done (2026-10-05) |
 | 11 | Filtering and fit scoring | 3. Job search | In progress (live run done; waiting on your labels) |
 | 12 | Hand-off and schedule | 3. Job search | Done (2026-10-05) |
-| 6 | Application profile | 2. Application | Not started |
+| 6 | Application profile | 2. Application | Done (2026-10-05) |
 | 7 | Greenhouse and Lever filler | 2. Application | Not started |
 | 8 | General forms and answer learning | 2. Application | Not started |
 | 9 | Multi-step platforms (stretch) | 2. Application | Not started |
@@ -90,8 +90,8 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 ### Phase 2: Application agent
 
 **Milestone 6. Application profile**
-- [ ] Every standard-answer field can be entered, edited and persists
-- [ ] Saved answers to past questions are stored and reusable
+- [x] Every standard-answer field can be entered, edited and persists (work authorization, sponsorship, relocation, start date, how you hear about jobs, plus salary and address; tested by entering, saving, reopening and editing; checked in the running app)
+- [x] Saved answers to past questions are stored and reusable (add, edit, delete on Profile & resume; `find_similar` finds the closest saved question for Milestone 8, and `record_use` counts reuse)
 
 **Milestone 7. Greenhouse and Lever filler**
 - [ ] On 5 real Greenhouse or Lever postings, at least 90% of non-sensitive fields are filled correctly
@@ -175,6 +175,8 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-05 | Company watch list: new `watch_companies` table; companies are added on Profile & resume by pasting a careers link (Greenhouse, Lever or Ashby), checked with one call to the board. Each run reads every board once; a job is matched to a search when all the words of one of its titles appear in the job title. It qualifies as remote (anywhere in the US; Lever and Ashby give the country) or near a city (its locations are looked up in the places list). A board's own remote/hybrid/on-site label (Lever, Ashby) is trusted over Claude's. Descriptions sent for scoring are capped at 3,000 characters; the full text is stored | Spec: watch list matched by title after fetching; one free call per company per run | n/a |
 | 2026-10-05 | When two postings share a duplicate key, each is checked against the rules on its own data, and the first copy that qualifies is the one stored | A UK-only remote job was kept because a US copy with the same key qualified | n/a |
 | 2026-10-05 | Watch-list jobs skip the date rule: every open job that matches a search's titles, locations, salary and exclusions is collected; jobs already seen aren't new again, so after the first run only newly posted ones appear | Spec: watch-list jobs filtered by posted date. Boards keep jobs open for months, and every match on 5 real boards was older than 3 days | Yes (2026-10-05) |
+| 2026-10-05 | Application profile in `data/application_profile.yaml` (`storage/application_profile.py`): street, apartment, city, state, ZIP, country; authorized to work in the US and need sponsorship (Yes / No); willing to relocate (Open to it / Yes / No); earliest start; how you usually hear about jobs; optional salary answer. Every choice has "Not set", and blank or Not set means the agent leaves the question for you. Edited on an "Application answers" card on Profile & resume and saved with Save changes | Spec's application profile fields and the mockup's Application answers card; the address is split because forms ask for it in parts | n/a |
+| 2026-10-05 | `saved_answers` table: question, a normalized question key (unique, so rewordings in case or punctuation replace rather than duplicate), answer, times used, created, updated and last used. Similar questions are matched by the higher of word overlap (ignoring filler words) and character similarity, with a threshold of 0.6. Managed on a "Saved answers to past questions" card | Spec: offered for reuse on similar questions; Milestone 8 will offer them while filling forms | n/a |
 | 2026-10-01 | Find jobs screen per the mockup, minus the Fit column (Milestone 11) and Start letter (Milestone 12). Job titles link to the posting; Save / Dismiss / Move to New change the job's status | Milestone 10 scope | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
@@ -209,6 +211,13 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-05 (Milestone 6)
+- Built the application profile (`storage/application_profile.py`) and saved answers (`storage/answers.py`, `saved_answers` table), with two new cards on Profile & resume: Application answers (saved with Save changes, included in the unsaved-changes notice, warnings for contradictory authorization and sponsorship answers and malformed US ZIP codes) and Saved answers to past questions (add, edit, delete, times used).
+- Found while testing: saving a question that clashed with another saved one closed the database connection before reporting it, which crashed instead of showing the message; fixed.
+- Checked in the running app: at the narrow pane width the three-across layout broke labels mid-word, so the answers use two columns. No server errors.
+- Tests: 308 passed, 1 skipped. New: `test_application_profile.py` (defaults, round trip, hand-edited YAML, warnings, saved answers add/update/delete/clash, similar-question lookup, reuse count) and three Profile screen tests (enter, save, reopen and edit every field; warnings; saved answers on screen).
+- Your answers aren't filled in yet: they're yours to enter on Profile & resume.
 
 ### 2026-10-05 (Milestone 12, live checks)
 - Per your choices: watch-list jobs skip the date rule; live check of a run plus Start letter (not the scheduled run).
