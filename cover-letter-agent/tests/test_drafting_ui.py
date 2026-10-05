@@ -24,6 +24,7 @@ MATCHES = {"matches": [{
     "evidence": [{"quote": "Canva and Adobe Express", "source": "resume"}],
 }]}
 FALSE = "I ran the Nashville Marathon expo for 30,000 runners."
+PADDING = " Filler words go here." * 100  # pushes a letter well past 400 words
 LETTER = (f"Dear Priya Raman,\n\nI'd like to run your newsletter. {FALSE} It costs $0 to say so.\n\n"
           "Thanks for your time,\nJordan Avery")
 CLAIMS = [
@@ -36,7 +37,9 @@ CLAIMS = [
 
 class Calls:
     def __init__(self):
-        self.counts = {"fetch": 0, "parse": 0, "match": 0, "draft": 0, "humanize": 0, "verify": 0, "fix": 0}
+        self.counts = {"fetch": 0, "parse": 0, "match": 0, "draft": 0, "humanize": 0, "verify": 0, "fix": 0,
+                       "trim": 0}
+        self.max_words = []
         self.went = []
         self.parsed = dict(PARSED)
         self.fail_match = 0
@@ -97,8 +100,13 @@ def calls(app_paths, monkeypatch):
             raise pipeline.PipelineError("Claude took too long to respond.")
         return fake_verify_result(letter, notes)
 
-    def fake_fix(client, model, letter, checked, resume_text, profile, notes, posting_text):
+    def fake_trim(client, model, letter, max_words):
+        c.counts["trim"] += 1
+        return letter.replace(PADDING, ""), ["Cut the padding"]
+
+    def fake_fix(client, model, letter, checked, resume_text, profile, notes, posting_text, max_words=None):
         c.counts["fix"] += 1
+        c.max_words.append(max_words)
         return letter.replace(f" {FALSE}", ""), [f"Removed: {FALSE}"]
 
     monkeypatch.setattr(fetch, "fetch", fake_fetch)
@@ -109,6 +117,7 @@ def calls(app_paths, monkeypatch):
     monkeypatch.setattr(pipeline, "humanize", fake_humanize)
     monkeypatch.setattr(pipeline, "verify", fake_verify)
     monkeypatch.setattr(pipeline, "fix_claims", fake_fix)
+    monkeypatch.setattr(pipeline, "trim", fake_trim)
     monkeypatch.setattr(nav, "go", lambda key, **params: c.went.append((key, params)))
     return c
 
@@ -213,7 +222,8 @@ def test_same_url_offers_existing_application(calls):
     assert "You already have an application for Marketing Coordinator at Harpeth Outdoor Co." in markdown_text(at)
     click(at, "Draft a new version")
     assert [d["version"] for d in db.list_drafts(1)] == [2, 1]
-    assert calls.counts == {"fetch": 1, "parse": 1, "match": 2, "draft": 2, "humanize": 2, "verify": 4, "fix": 2}
+    assert calls.counts == {"fetch": 1, "parse": 1, "match": 2, "draft": 2, "humanize": 2, "verify": 4, "fix": 2,
+                           "trim": 0}
 
 
 def test_unclear_title_is_confirmed_first(calls):
@@ -419,9 +429,39 @@ def test_fix_up_runs_only_when_claims_are_flagged(calls, monkeypatch):
 
 
 def test_claims_still_unsupported_after_fix_stay_flagged(calls, monkeypatch):
-    monkeypatch.setattr(pipeline, "fix_claims", lambda *a: (a[2], ["Couldn't fix"]))  # fix-up changes nothing
+    monkeypatch.setattr(pipeline, "fix_claims", lambda *a, **k: (a[2], ["Couldn't fix"]))  # fix-up changes nothing
     at = open_new_letter()
     at.text_input(key="nl_url").input("https://harpeth.example/careers/marketing")
     click(at, "Generate draft")
     (draft,) = db.list_drafts(1)
     assert FALSE in draft["text"] and pipeline.flag_count(draft["verify_json"]) == 1
+
+
+# --- Word limit ------------------------------------------------------------------
+
+
+def test_letter_over_the_limit_is_trimmed_before_checking(calls, monkeypatch):
+    from ui import drafting
+
+    monkeypatch.setattr(pipeline, "humanize", lambda *a: (a[2].replace("newsletter.", "newsletter." + PADDING), []))
+    app_id = make_app()
+    drafting.finish(app_id, LETTER, pipeline.DraftSettings("Warm", "250–400 words"))
+    latest = db.latest_draft(app_id)
+    assert PADDING not in latest["text"] and FALSE not in latest["text"]
+    assert calls.counts["trim"] == 1  # after humanize; the fix-up kept it short, so no second trim
+    assert calls.max_words == [400]  # the fix-up is told the limit
+
+
+def test_short_setting_uses_its_own_limit(calls):
+    from ui import drafting
+
+    drafting.finish(make_app(), LETTER, pipeline.DraftSettings("Warm", "Short, under 250 words"))
+    assert calls.max_words == [250] and calls.counts["trim"] == 0  # already short: no trim
+
+
+def test_your_own_long_edit_is_not_trimmed(calls):
+    from ui import drafting
+
+    app_id = make_app()
+    drafting.save_edit(app_id, LETTER.replace("newsletter.", "newsletter." + PADDING))
+    assert PADDING in db.latest_draft(app_id)["text"] and calls.counts["trim"] == 0

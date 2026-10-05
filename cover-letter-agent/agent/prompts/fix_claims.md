@@ -17,6 +17,7 @@ Rules:
 
 - Change only what's needed to fix the flagged claims. Leave every other sentence exactly as it is, word for word.
 - Don't add new facts, numbers, names, tools or stories anywhere.
+- A corrected claim should be no longer than the one it replaces. If `<word_limit>` is given, the whole letter must stay at or under that many words.
 - Keep the greeting, the sign-off and the candidate's name unchanged.
 - Keep the candidate's voice: plain first person, contractions where the letter already uses them, at most one em dash in the whole letter.
 

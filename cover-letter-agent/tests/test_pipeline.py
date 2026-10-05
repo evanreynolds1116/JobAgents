@@ -327,6 +327,7 @@ def test_fix_claims_sends_flagged_claims_and_sources():
     assert sent.count("</job_posting>") == 1  # posting can't close its own tag
     assert req["output_config"]["effort"] == "low"
     assert req["system"] == pipeline.load_prompt("fix_claims")
+    assert "<word_limit>" not in sent  # only sent when given
 
 
 def test_fix_claims_skips_the_call_when_nothing_is_flagged():
@@ -334,3 +335,43 @@ def test_fix_claims_skips_the_call_when_nothing_is_flagged():
     assert pipeline.fix_claims(client, MODEL, "Letter", {"claims": [], "style_flags": [], "lint": []},
                                RESUME, PROFILE, "", "") == ("Letter", [])
     assert client.requests == []
+
+
+def test_fix_claims_sends_the_word_limit():
+    checked = {"claims": [{"claim": "Daily.", "supported": False, "source": "none", "evidence": "",
+                           "reason": "Monthly."}], "style_flags": [], "lint": []}
+    client = FakeClient(response(json.dumps({"letter": "Monthly.", "changes": ["daily -> monthly"]})))
+    pipeline.fix_claims(client, MODEL, "Daily.", checked, RESUME, PROFILE, "", "", max_words=400)
+    assert client.requests[0]["messages"][0]["content"].endswith("<word_limit>400</word_limit>")
+
+
+# --- Word limit -------------------------------------------------------------------
+
+
+def test_word_limits():
+    assert pipeline.word_limits("250–400 words") == (250, 400) == SETTINGS.word_limits
+    assert pipeline.word_limits("Short, under 250 words") == (150, 250)
+
+
+def test_humanize_is_told_the_word_limit():
+    client = FakeClient(response(json.dumps({"letter": "Dear Dana,\n\nHi.\n\nJordan", "changes": []})))
+    pipeline.humanize(client, MODEL, "Dear Dana,\n\nHi.\n\nJordan", PROFILE, SETTINGS)
+    assert "Word limit: 400" in client.requests[0]["messages"][0]["content"]
+
+
+def test_trim_skips_the_call_within_the_limit():
+    client = FakeClient()
+    assert pipeline.trim(client, MODEL, "word " * 400, 400) == ("word " * 400, [])
+    assert client.requests == []
+
+
+def test_trim_cuts_a_long_letter():
+    long_letter = "Dear Dana,\n\n" + "Some words here. " * 140 + "\n\nJordan"  # over 400 words
+    short = "Dear Dana,\n\n" + "Some words here. " * 120 + "\n\nJordan"
+    client = FakeClient(response(json.dumps({"letter": short, "changes": ["Cut repetition"]})))
+    letter, changes = pipeline.trim(client, MODEL, long_letter, 400)
+    assert letter == short and changes == ["Cut repetition"]
+    req = client.requests[0]
+    sent = req["messages"][0]["content"]
+    assert f"<word_count>{pipeline.word_count(long_letter)}</word_count>" in sent and "<target>380 to 400 words</target>" in sent
+    assert req["system"] == pipeline.load_prompt("trim") and req["output_config"]["effort"] == "low"

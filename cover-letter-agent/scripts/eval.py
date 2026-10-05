@@ -65,7 +65,7 @@ def names_company(company: str | None, letter: str) -> bool:
 def score(item: dict, parsed: dict, matches: dict, letter: str, checked: dict, length: str) -> dict:
     """The checks code can make. The rest are yours (see MANUAL)."""
     words = pipeline.word_count(letter)
-    low, high = (150, 250) if length.startswith("Short") else (250, 400)
+    low, high = pipeline.word_limits(length)
     must = [m for m in matches["matches"] if m["kind"] == "must_have"]
     addressed = [m for m in must if m["strength"] != "none"]
     flags = pipeline.flags(checked)
@@ -99,16 +99,21 @@ def run_one(client, model: str, item: dict, resume_text: str, profile, settings)
     parsed = timed("parse", pipeline.parse_job, client, model, posting)
     matches = timed("match", pipeline.match, client, model, parsed, resume_text, notes)
     draft = timed("draft", pipeline.draft, client, model, parsed, matches, resume_text, notes, profile, settings)
+    most = settings.word_limits[1]
     letter, changes = timed("humanize", pipeline.humanize, client, model, draft, profile, settings)
+    letter, trims = timed("trim", pipeline.trim, client, model, letter, most)  # no call when within the limit
     checked = timed("verify", pipeline.verify, client, model, letter, resume_text, profile, notes, posting)
     first_check, fixes = checked, []
     if pipeline.flags(checked)["claims"]:  # same automatic fix-up the app runs
         letter, fixes = timed("fix", pipeline.fix_claims, client, model, letter, checked, resume_text,
-                              profile, notes, posting)
+                              profile, notes, posting, most)
+        letter, more = timed("trim_again", pipeline.trim, client, model, letter, most)
+        trims += more
         checked = timed("verify_again", pipeline.verify, client, model, letter, resume_text, profile, notes,
                         posting)
     return {"id": item["id"], "parsed": parsed, "matches": matches, "first_draft": draft, "letter": letter,
-            "humanize_changes": changes, "first_verify": first_check, "fixes": fixes, "verify": checked,
+            "humanize_changes": changes, "trims": trims, "first_verify": first_check, "fixes": fixes,
+            "verify": checked,
             "seconds": times, "score": score(item, parsed, matches, letter, checked, settings.length)}
 
 
@@ -151,7 +156,7 @@ def write_report(out: Path, item_results: list[dict], manifest: dict, skipped: l
             f"| Unsupported claims | {s['unsupported_claims']} (fix-up changes: {len(r['fixes'])}) |",
             f"| Banned phrases | {s['banned_phrases']} |",
             f"| Other style flags | {s['style_flags']} |",
-            f"| Length within target | {_yes(s['length_ok'])} |",
+            f"| Length within target | {_yes(s['length_ok'])} (trim cuts: {len(r.get('trims', []))}) |",
             f"| Names the company | {_yes(s['company_named'])} |",
             f"| Job notes used | {_yes(s['notes_used'])} |", "",
             "### Letter", "", r["letter"], "",

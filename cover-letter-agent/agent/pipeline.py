@@ -21,7 +21,7 @@ PROMPTS = Path(__file__).resolve().parent / "prompts"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_TOKENS = 16_000
 EFFORT = {"parse": "low", "match": "low", "draft": "medium", "humanize": "low", "verify": "medium",
-          "fix": "low"}
+          "fix": "low", "trim": "low"}
 
 
 class PipelineError(Exception):
@@ -280,6 +280,15 @@ class DraftSettings:
     tone: str
     length: str
 
+    @property
+    def word_limits(self) -> tuple[int, int]:
+        return word_limits(self.length)
+
+
+def word_limits(length: str) -> tuple[int, int]:
+    """(fewest, most) words for a length setting: "250–400 words" or "Short, under 250 words"."""
+    return (150, 250) if length.startswith("Short") else (250, 400)
+
 
 def _samples(profile) -> str:
     return "\n\n---\n\n".join(s[:6000] for s in profile.writing_samples) or "(none provided)"
@@ -336,7 +345,8 @@ def humanize(client, model: str, letter: str, profile, settings: DraftSettings) 
         f"<letter>\n{letter}\n</letter>",
         f"<flagged>\n{flagged}\n</flagged>",
         f"<writing_samples>\n{_samples(profile)}\n</writing_samples>",
-        f"<settings>\nTone: {settings.tone}\nLength: {settings.length}\n</settings>",
+        f"<settings>\nTone: {settings.tone}\nLength: {settings.length}\n"
+        f"Word limit: {settings.word_limits[1]}\n</settings>",
     ])
     result = _call_json(client, model, "humanize", load_prompt("humanize"), user, HUMANIZE_SCHEMA)
     revised = result["letter"].strip()
@@ -434,7 +444,7 @@ FIX_SCHEMA = HUMANIZE_SCHEMA  # {"letter": ..., "changes": [...]}
 
 
 def fix_claims(client, model: str, letter: str, verify_result: dict, resume_text: str, profile,
-               notes: str, posting_text: str) -> tuple[str, list[str]]:
+               notes: str, posting_text: str, max_words: int | None = None) -> tuple[str, list[str]]:
     """Rewrite or remove the claims verify flagged, changing nothing else. Run once, then
     verify again; anything still unsupported stays flagged for you."""
     unsupported = flags(verify_result)["claims"]
@@ -449,9 +459,32 @@ def fix_claims(client, model: str, letter: str, verify_result: dict, resume_text
         f"<notes>\n{notes.strip() or '(none)'}\n</notes>",
         _posting_block(posting_text),
     ])
+    if max_words:
+        user += f"\n\n<word_limit>{max_words}</word_limit>"
     result = _call_json(client, model, "fix", load_prompt("fix_claims"), user, FIX_SCHEMA)
     fixed = result["letter"].strip()
     return (fixed or letter), result["changes"]
+
+
+# --- Trim (after humanize or the fix-up, only when over the limit) ---------------
+
+TRIM_MARGIN = 20  # aim this many words under the limit, so the count lands inside it
+
+
+def trim(client, model: str, letter: str, max_words: int) -> tuple[str, list[str]]:
+    """Cut a letter that went over the word limit, removing words and adding nothing.
+    No call when it's already within the limit. Verify runs afterwards as usual."""
+    words = word_count(letter)
+    if words <= max_words:
+        return letter, []
+    user = "\n\n".join([
+        f"<letter>\n{letter}\n</letter>",
+        f"<word_count>{words}</word_count>",
+        f"<target>{max_words - TRIM_MARGIN} to {max_words} words</target>",
+    ])
+    result = _call_json(client, model, "trim", load_prompt("trim"), user, FIX_SCHEMA)
+    trimmed = result["letter"].strip()
+    return (trimmed or letter), result["changes"]
 
 
 def flags(verify_result: dict | None) -> dict:

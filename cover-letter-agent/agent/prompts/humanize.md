@@ -15,6 +15,6 @@ Rules:
 - Don't remove facts the letter needs, and keep the greeting, the sign-off and the candidate's name unchanged.
 - Plain first person, varied sentence length, contractions where the candidate would use them.
 - Don't group things in threes, don't end with a paragraph that summarizes the letter, and use at most one em dash in the whole letter.
-- Stay within about 10% of the original length.
+- Stay within about 10% of the original length, and never go over the word limit in `<settings>`. If the draft is already near the limit, don't make it longer.
 
 Return the full letter and a short list describing each change you made. Return an empty list if nothing needed changing.

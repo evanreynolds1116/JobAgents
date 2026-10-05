@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 11. Filtering and fit scoring (5 is still waiting on your scores and postings 09–10)
-- **Next step:** Start Milestone 11; separately, score the Milestone 5 evaluation and paste postings 09–10
+- **Current milestone:** 11. Filtering and fit scoring (5 is waiting on your scores)
+- **Next step:** Start Milestone 11; separately, score the Milestone 5 evaluation (both `scores.csv` files); optionally re-run `scripts/eval.py --only 09` to see the length fix on a real letter
 - **Last updated:** 2026-10-05
 
 ## Build order
@@ -67,7 +67,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Applications list with status, searchable by company or title
 - [x] Application detail page shows the saved job description (even after the original posting is gone), the letter version sent, key dates and a notes log
 - [x] All tests pass (187 passed, 1 skipped: the real Word conversion, run on demand with `JOBAGENTS_PDF_TEST=1`)
-- [ ] Quality evaluation (`scripts/eval.py`) meets the success criteria in the spec's Overview & goals (second run, 8 of 10 postings: every automatic check passes; waiting on postings 09–10 and your scores)
+- [ ] Quality evaluation (`scripts/eval.py`) meets the success criteria in the spec's Overview & goals (all 10 postings across two runs: 10 of 10 correct company and title, 10 of 10 with zero unsupported claims, 10 of 10 with no banned phrases, 9 of 10 within 250–400 words, with 09 at 404; waiting on your scores)
 
 ### Phase 3: Job search agent
 
@@ -162,6 +162,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-05 | City results are checked again by distance: the job's latitude and longitude (sent by Adzuna) against the city's, great-circle miles, with no tolerance; jobs over the radius are dropped. Remote jobs aren't checked. Jobs without coordinates are left to Adzuna's filter. City coordinates come from `search/us_places.csv` (32,147 places), built by `scripts/build_places.py` from the Census Bureau's 2025 Gazetteer place file (public domain). Cities must be typed as city, state ("Nashville, TN" or "Nashville, Tennessee"); a city not in the list is reported when the search is saved | Adzuna's `distance` let a job 39.7 mi away through a 25 mi search; the spec allows no geocoding service | Yes (option b, 2026-10-05) |
 | 2026-10-05 | The salary range isn't sent to Adzuna; the app checks it after fetching, against salaries stated in the posting only. Jobs with no salary, or only Adzuna's estimate, are kept and labeled ("Not listed" or "est.") | Adzuna's salary filter also applies to its estimates (34 of 39 live results), so jobs that never stated a salary were removed on a guess. Spec said the range is "sent to Adzuna's salary filters and checked again after fetching" | Yes (option b, 2026-10-05) |
 | 2026-10-05 | "Hide jobs with no salary listed" hides only jobs with no salary at all; jobs with an Adzuna estimate stay visible, labeled "est." | Most Adzuna results have only an estimate (36 of 41 live), so hiding them would hide most jobs | Yes (2026-10-05) |
+| 2026-10-05 | Word limit after drafting: humanize and the claim fix-up are told the word limit (400, or 250 for Short). If a generated letter is still over it after either step, a trim step (`agent/prompts/trim.md`, effort `low`) cuts it to 20 words under the limit or less, removing words only. Trimming runs before verify, so the trimmed letter is checked. No call when the letter is within the limit; your own edits are never trimmed. `scripts/eval.py` runs the same steps and reports the trim cuts | Posting 09 went from 394 to 404 words after those steps, and nothing checked the length again | Yes (2026-10-05) |
 | 2026-10-01 | Find jobs screen per the mockup, minus the Fit column (Milestone 11) and Start letter (Milestone 12). Job titles link to the posting; Save / Dismiss / Move to New change the job's status | Milestone 10 scope | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
@@ -179,17 +180,28 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Upload your real resume and confirm nothing is missing (confirmed 2026-10-01)
 - [x] Split `app.py` into one file per screen under `ui/`: done 2026-10-01
 - [x] Milestone 3 acceptance: 10 real links received 2026-10-01; 8 of 8 readable postings correct (see session log)
-- [ ] Optional: paste the text of the 2 LinkedIn postings (09, 10) to complete the 10-posting set; Milestone 5's evaluation reuses it
 - [x] Draft speed: match effort lowered to `low` (2026-10-01); slowest real posting went from 66 to 45 seconds
 - [x] API credits added (2026-10-01)
-- [ ] Paste the text of LinkedIn postings 09 and 10 to complete the 10-posting set
+- [x] Text of LinkedIn postings 09 (The Home Depot, Software Engineer (Remote)) and 10 (Hatch, Backend Engineer II) received 2026-10-05; saved as `tests/fixtures/real/09.txt` and `10.txt`, each starting with the company and title lines the user gave, and added to `postings.json`
 - [x] Unsupported claims: 5 of 6 evaluated letters had 1–2 flagged embellishments. User chose option (a), an automatic fix-up pass (built 2026-10-01; not yet run against the live API because credits ran out)
-- [ ] Score the judgment calls in `output/eval/2026-10-01_133720/scores.csv` (sounds like you, specific to the company, would send after light edits), and say which postings are weak matches for your resume
+- [ ] Score the judgment calls in `output/eval/2026-10-01_133720/scores.csv` (postings 01–08) and `output/eval/2026-10-05_113129/scores.csv` (09–10) (sounds like you, specific to the company, would send after light edits), and say which postings are weak matches for your resume
+- [x] Letter length after the rewriting steps: posting 09's draft was 394 words, but the humanize and fix-up steps took it to 404. Fixed 2026-10-05 (user approved): both steps get the word limit, and a trim step runs when a letter is still over it (see Decisions)
 - [x] Draft speed with all five steps: 85 seconds on a real posting. Verify kept at `medium` (2026-10-01); about 85 seconds per letter is accepted, against the spec's "under a minute" goal
 - [x] Real postings go in a gitignored `tests/fixtures/real/` (approved 2026-10-01)
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-05 (letter length fix)
+- Built the length fix the user approved: humanize and the fix-up get the word limit; a new trim step cuts letters still over it, before verify. Wired into the app (`ui/drafting.py`) and `scripts/eval.py` (new "trim cuts" in the report). Your own edits are never trimmed. "What happens next" on New cover letter mentions the trim.
+- Tests: 244 passed, 1 skipped. New: word limits, humanize and fix-up receive the limit, trim skips the call within the limit, trim sends the count and target, a long letter is trimmed before checking, Short uses 250, hand edits aren't trimmed.
+- Not yet run against the live API (it costs credits); re-running posting 09 would show it on a real letter.
+
+### 2026-10-05 (Milestone 5, postings 09–10)
+- Saved the pasted text of the two LinkedIn postings as `tests/fixtures/real/09.txt` (The Home Depot, Software Engineer (Remote)) and `10.txt` (Hatch, Backend Engineer II), and added their expected company and title to `postings.json`.
+- Ran `scripts/eval.py --only 09,10` (`output/eval/2026-10-05_113129/`): 2 of 2 correct company and title; 2 of 2 with zero unsupported claims after the fix-up (0 of 2 before; changes were narrow, for example "AI-assisted development is part of my everyday work" became "...a big part of how I work now"); 2 of 2 with no banned phrases; 1 of 2 within length (09: 404 words, 10: 394); 1 and 3 style flags; 120 and 118 seconds.
+- 09 shows "2 of 4 must-haves with evidence": the two missing are "18 or older" and "allowed to work in the U.S.", which a resume doesn't show, so this isn't a weakness in the letter.
+- Open: letter length after the rewriting steps (see Blockers); your scores for both runs.
 
 ### 2026-10-05 (Milestone 10, salary check)
 - Live run with a $90k minimum (same search, temporary database, calls added to the app's count). Sent `salary_min=90000` with `salary_include_unknown=1`. 39 new jobs, 0 duplicates, none older than 3 days, every one with a range reaching $90k (lowest top of range $94,452; one range of $82k–$136k kept because it overlaps). The app's own salary rule dropped nothing because Adzuna had already applied the minimum. Compared with an unfiltered run a minute earlier, the minimum removed exactly two jobs, both Vontier "Software Engineer II" with estimated salaries of $70,719 and $75,238.

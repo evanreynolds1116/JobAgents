@@ -17,6 +17,15 @@ def _client():
     return pipeline.make_client(settings.api_key), settings.model
 
 
+def _fit(client, model: str, letter: str, settings: pipeline.DraftSettings,
+         say: Callable[[str], None]) -> str:
+    """Trim generated text that went over the word limit (your own edits are never trimmed)."""
+    if pipeline.word_count(letter) > settings.word_limits[1]:
+        say("Trimming to the word limit…")
+        letter, _ = pipeline.trim(client, model, letter, settings.word_limits[1])
+    return letter
+
+
 def finish(app_id: int, letter: str, settings: pipeline.DraftSettings, feedback: str | None = None,
            smooth: bool = True, say: Callable[[str], None] = lambda _: None) -> int:
     """Steps 4 and 5 for a new letter text, then save it as a new version."""
@@ -29,13 +38,15 @@ def finish(app_id: int, letter: str, settings: pipeline.DraftSettings, feedback:
         if smooth:
             say("Smoothing the wording…")
             letter, _ = pipeline.humanize(client, model, letter, profile, settings)
+            letter = _fit(client, model, letter, settings, say)
         say("Checking every claim against your resume and notes…")
         checked = pipeline.verify(client, model, letter, resume_text, profile, notes, app["posting_text"])
         # Generated text gets one automatic fix-up for unsupported claims; your own edits don't.
         if smooth and pipeline.flags(checked)["claims"]:
             say("Fixing claims your sources don't support…")
             letter, _ = pipeline.fix_claims(client, model, letter, checked, resume_text, profile, notes,
-                                            app["posting_text"])
+                                            app["posting_text"], max_words=settings.word_limits[1])
+            letter = _fit(client, model, letter, settings, say)
             say("Checking again…")
             checked = pipeline.verify(client, model, letter, resume_text, profile, notes, app["posting_text"])
     except pipeline.PipelineError:

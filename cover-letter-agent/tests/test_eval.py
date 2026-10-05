@@ -64,7 +64,9 @@ def test_eval_writes_report_and_scoresheet(postings, tmp_path):
     assert (out / "01.md").read_text(encoding="utf-8") == LETTER
     saved = json.loads((out / "01.json").read_text(encoding="utf-8"))
     assert saved["score"]["must_haves_with_evidence"] == "0 of 1"
-    assert set(saved["seconds"]) == {"parse", "match", "draft", "humanize", "verify", "fix", "verify_again"}
+    assert set(saved["seconds"]) == {"parse", "match", "draft", "humanize", "trim", "verify", "fix", "trim_again",
+                                     "verify_again"}
+    assert saved["trims"] == [] and "| Length within target | **no** (trim cuts: 0) |" in text
     rows = list(csv.reader(open(out / "scores.csv", encoding="utf-8")))
     assert rows[0][-1] == "comments" and "You'd send it after light edits" in rows[0]
     assert rows[1][:4] == ["01", "Acme Corp", "Backend Engineer", "True"]
