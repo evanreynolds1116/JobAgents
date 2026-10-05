@@ -16,7 +16,7 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 ## Current status
 
 - **Current milestone:** 11. Filtering and fit scoring (5 is waiting on your scores)
-- **Next step:** Start Milestone 11; separately, score the Milestone 5 evaluation (both `scores.csv` files); optionally re-run `scripts/eval.py --only 09` to see the length fix on a real letter
+- **Next step:** Start Milestone 11; separately, score the Milestone 5 evaluation (both `scores.csv` files)
 - **Last updated:** 2026-10-05
 
 ## Build order
@@ -67,7 +67,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Applications list with status, searchable by company or title
 - [x] Application detail page shows the saved job description (even after the original posting is gone), the letter version sent, key dates and a notes log
 - [x] All tests pass (187 passed, 1 skipped: the real Word conversion, run on demand with `JOBAGENTS_PDF_TEST=1`)
-- [ ] Quality evaluation (`scripts/eval.py`) meets the success criteria in the spec's Overview & goals (all 10 postings across two runs: 10 of 10 correct company and title, 10 of 10 with zero unsupported claims, 10 of 10 with no banned phrases, 9 of 10 within 250–400 words, with 09 at 404; waiting on your scores)
+- [ ] Quality evaluation (`scripts/eval.py`) meets the success criteria in the spec's Overview & goals (latest letter for each of the 10 postings: 10 of 10 correct company and title, 10 of 10 with zero unsupported claims, 10 of 10 with no banned phrases, 10 of 10 within 250–400 words; waiting on your scores)
 
 ### Phase 3: Job search agent
 
@@ -184,7 +184,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] API credits added (2026-10-01)
 - [x] Text of LinkedIn postings 09 (The Home Depot, Software Engineer (Remote)) and 10 (Hatch, Backend Engineer II) received 2026-10-05; saved as `tests/fixtures/real/09.txt` and `10.txt`, each starting with the company and title lines the user gave, and added to `postings.json`
 - [x] Unsupported claims: 5 of 6 evaluated letters had 1–2 flagged embellishments. User chose option (a), an automatic fix-up pass (built 2026-10-01; not yet run against the live API because credits ran out)
-- [ ] Score the judgment calls in `output/eval/2026-10-01_133720/scores.csv` (postings 01–08) and `output/eval/2026-10-05_113129/scores.csv` (09–10) (sounds like you, specific to the company, would send after light edits), and say which postings are weak matches for your resume
+- [ ] Score the judgment calls in `output/eval/2026-10-01_133720/scores.csv` (postings 01–08), `output/eval/2026-10-05_113129/scores.csv` (10) and `output/eval/2026-10-05_114543/scores.csv` (09, re-run) (sounds like you, specific to the company, would send after light edits), and say which postings are weak matches for your resume
 - [x] Letter length after the rewriting steps: posting 09's draft was 394 words, but the humanize and fix-up steps took it to 404. Fixed 2026-10-05 (user approved): both steps get the word limit, and a trim step runs when a letter is still over it (see Decisions)
 - [x] Draft speed with all five steps: 85 seconds on a real posting. Verify kept at `medium` (2026-10-01); about 85 seconds per letter is accepted, against the spec's "under a minute" goal
 - [x] Real postings go in a gitignored `tests/fixtures/real/` (approved 2026-10-01)
@@ -195,7 +195,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 ### 2026-10-05 (letter length fix)
 - Built the length fix the user approved: humanize and the fix-up get the word limit; a new trim step cuts letters still over it, before verify. Wired into the app (`ui/drafting.py`) and `scripts/eval.py` (new "trim cuts" in the report). Your own edits are never trimmed. "What happens next" on New cover letter mentions the trim.
 - Tests: 244 passed, 1 skipped. New: word limits, humanize and fix-up receive the limit, trim skips the call within the limit, trim sends the count and target, a long letter is trimmed before checking, Short uses 250, hand edits aren't trimmed.
-- Not yet run against the live API (it costs credits); re-running posting 09 would show it on a real letter.
+- Re-ran posting 09 (`output/eval/2026-10-05_114543/`): 374 words (draft 374; humanize changed nothing; the fix-up corrected one quote from the posting to match it word for word, with no change in length). 0 unsupported claims, 0 banned phrases, 4 style flags, 108 seconds. Within length, but the trim step never ran, because this draft came in shorter. It's covered by tests but hasn't yet run on a real letter.
 
 ### 2026-10-05 (Milestone 5, postings 09–10)
 - Saved the pasted text of the two LinkedIn postings as `tests/fixtures/real/09.txt` (The Home Depot, Software Engineer (Remote)) and `10.txt` (Hatch, Backend Engineer II), and added their expected company and title to `postings.json`.
