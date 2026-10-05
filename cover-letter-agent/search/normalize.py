@@ -92,8 +92,9 @@ def salary_label(job: dict) -> str:
 
 
 def salary_outside(job: Job, low: int | None, high: int | None) -> bool:
-    """True only when the posting's whole range misses yours. No salary is never outside."""
-    if job.salary_min is None and job.salary_max is None:
+    """True only when the posting's stated range misses yours. No salary, or only Adzuna's
+    estimate, is never outside; those jobs are kept and labeled."""
+    if job.salary_estimated or (job.salary_min is None and job.salary_max is None):
         return False
     top = job.salary_max if job.salary_max is not None else job.salary_min
     bottom = job.salary_min if job.salary_min is not None else job.salary_max

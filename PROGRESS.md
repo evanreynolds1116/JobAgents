@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 10. Saved searches and Adzuna (5 is still waiting on your scores and postings 09–10)
-- **Next step:** Run a live search with a salary range to finish Milestone 10; separately, score the Milestone 5 evaluation and paste postings 09–10
+- **Current milestone:** 11. Filtering and fit scoring (5 is still waiting on your scores and postings 09–10)
+- **Next step:** Start Milestone 11; separately, score the Milestone 5 evaluation and paste postings 09–10
 - **Last updated:** 2026-10-05
 
 ## Build order
@@ -30,7 +30,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 3 | Fetch and draft | 1. Cover letter | Done |
 | 4 | Verify, review and approve | 1. Cover letter | Done |
 | 5 | Export, history and evaluation | 1. Cover letter | In progress (awaiting the quality evaluation) |
-| 10 | Saved searches and Adzuna | 3. Job search | In progress (live check run 2026-10-05; salary item open) |
+| 10 | Saved searches and Adzuna | 3. Job search | Done (2026-10-05) |
 | 11 | Filtering and fit scoring | 3. Job search | Not started |
 | 12 | Hand-off and schedule | 3. Job search | Not started |
 | 6 | Application profile | 2. Application | Not started |
@@ -74,7 +74,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 **Milestone 10. Saved searches and Adzuna**
 - [x] A search for 2 titles × 2 cities over the last 3 days returns results with no duplicates (live run 2026-10-05: 43 jobs stored, 0 duplicates, 12 cross-query repeats merged)
 - [x] Location rule: hybrid and on-site jobs outside the cities' radius are excluded; remote jobs from anywhere in the US are included (one nationwide remote query per title) (live 2026-10-05: 69 non-remote nationwide results dropped; city results are now checked against the job's coordinates, which dropped a Morristown, TN job 39.7 mi from Knoxville that Adzuna's 25 mi filter let through)
-- [ ] Date-posted and salary filters work (live: date filter works, 22 results older than 3 days dropped and none stored; salary range not yet tried live)
+- [x] Date-posted and salary filters work (live 2026-10-05: none of the stored jobs was older than 3 days; with a $90k minimum, the app checks stated salaries only; two Vontier jobs with only Adzuna estimates of $71k and $75k are kept and labeled "est.")
 - [x] Adzuna usage is tracked and the app pauses before the daily limit (250 calls)
 
 **Milestone 11. Filtering and fit scoring**
@@ -155,11 +155,13 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-01 | `scripts/eval.py` reads a manifest (`tests/fixtures/real/postings.json`, gitignored) with expected company and title, optional notes and a weak-match flag; asks before spending money unless `--yes`; writes `report.md`, per-posting letters and verifier reports, and `scores.csv` for the judgment calls to `output/eval/<date-time>/` | Spec: run all 10, save drafts and verifier reports side by side; the manifest makes results comparable run to run | n/a |
 | 2026-10-01 | Automatic fix-up pass after step 5: if verify flags unsupported claims, one call (`agent/prompts/fix_claims.md`, effort `low`) rewrites each to say only what the sources support or removes it, leaving everything else word for word; then verify runs again. At most once per draft, and never on your own edits. Anything still unsupported stays flagged for review | First evaluation: 5 of 6 letters had small embellishments, against the spec's goal of zero unsupported claims. Adds about 30–40 seconds to letters that need it | Yes (user chose option a) |
 | 2026-10-01 | Job search code lives in a new `search/` package (`criteria.py`, `adzuna.py`, `normalize.py`, `run.py`) with storage in `storage/jobs.py`; tables `saved_searches`, `jobs` and `api_usage` | Spec names the tables but no folder for Phase 3 code (Phase 2 gets `apply/`) | n/a |
-| 2026-10-01 | Adzuna queries use `title_only=<title>` (so results have the title in their title) with `where` + `distance` (miles converted to km) for each city, and `title_only=<title>` + `what=remote` with no location for the nationwide remote query. One page of 50 results per query, sorted by date, `max_days_old` 1/3/7. With a salary range set, `salary_min`/`salary_max` are sent with `salary_include_unknown=1` so postings without a salary are kept and labeled | Parameter names checked against Adzuna's published API spec; matches the spec's query plan and sizing (3 titles × 3 = 9 calls) | n/a |
+| 2026-10-01 | Adzuna queries use `title_only=<title>` (so results have the title in their title) with `where` + `distance` (miles converted to km) for each city, and `title_only=<title>` + `what=remote` with no location for the nationwide remote query. One page of 50 results per query, sorted by date, `max_days_old` 1/3/7. The salary range is no longer sent (see 2026-10-05) | Parameter names checked against Adzuna's published API spec; matches the spec's query plan and sizing (3 titles × 3 = 9 calls) | n/a |
 | 2026-10-01 | Until Milestone 11 adds Claude's classification, the work setting is read from the posting text (hybrid / remote / on-site keywords, else Unknown). City-query results that aren't remote are also checked against the job's coordinates (see 2026-10-05); nationwide results are kept only if labeled remote | Spec's location rule; the city check needs no geocoding service | n/a |
 | 2026-10-01 | Duplicate key: company (minus Inc., LLC and similar), title and city, lowercased with punctuation removed; remote jobs use "remote" as the place. A repeat from the same source ID also counts as seen. Known jobs keep their status (a dismissed job isn't shown as new again) | Spec: same company, title and location becomes one record; seen jobs aren't new again | n/a |
 | 2026-10-01 | Adzuna allowance: the run is refused before any call if it would pass 250 calls today or 2,500 this month. Calls are counted per day, including failed ones. A failed query is reported and the rest still run | Spec: track usage and pause before the daily limit | n/a |
 | 2026-10-05 | City results are checked again by distance: the job's latitude and longitude (sent by Adzuna) against the city's, great-circle miles, with no tolerance; jobs over the radius are dropped. Remote jobs aren't checked. Jobs without coordinates are left to Adzuna's filter. City coordinates come from `search/us_places.csv` (32,147 places), built by `scripts/build_places.py` from the Census Bureau's 2025 Gazetteer place file (public domain). Cities must be typed as city, state ("Nashville, TN" or "Nashville, Tennessee"); a city not in the list is reported when the search is saved | Adzuna's `distance` let a job 39.7 mi away through a 25 mi search; the spec allows no geocoding service | Yes (option b, 2026-10-05) |
+| 2026-10-05 | The salary range isn't sent to Adzuna; the app checks it after fetching, against salaries stated in the posting only. Jobs with no salary, or only Adzuna's estimate, are kept and labeled ("Not listed" or "est.") | Adzuna's salary filter also applies to its estimates (34 of 39 live results), so jobs that never stated a salary were removed on a guess. Spec said the range is "sent to Adzuna's salary filters and checked again after fetching" | Yes (option b, 2026-10-05) |
+| 2026-10-05 | "Hide jobs with no salary listed" hides only jobs with no salary at all; jobs with an Adzuna estimate stay visible, labeled "est." | Most Adzuna results have only an estimate (36 of 41 live), so hiding them would hide most jobs | Yes (2026-10-05) |
 | 2026-10-01 | Find jobs screen per the mockup, minus the Fit column (Milestone 11) and Start letter (Milestone 12). Job titles link to the posting; Save / Dismiss / Move to New change the job's status | Milestone 10 scope | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
@@ -169,7 +171,8 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [ ] Get a writing sample (for example, a past cover letter) from the user for the profile
 - [x] Adzuna keys added to `cover-letter-agent/.env` (done by 2026-10-05). Anthropic key: done
 - [x] Adzuna's `distance` isn't exact (a 25 mi Knoxville search returned a Morristown, TN job 39.7 mi away). User chose option (b), checking the job's coordinates; built 2026-10-05
-- [ ] Run a live search with a salary range to finish Milestone 10's salary item (38 of 43 live results had Adzuna-estimated salaries, labeled as estimates)
+- [x] Live search with a salary range: done 2026-10-05 ($90k minimum)
+- [x] Estimated salaries and the salary filter: Adzuna's `salary_min` filter also applied to its own estimates and removed postings that never stated a salary. User chose option (b), filtering on stated salaries in the app; built 2026-10-05
 - [x] Fonts: bundle locally (approved 2026-10-01)
 - [x] Approve or change the "Pending" rows in Decisions & deviations (all approved 2026-10-01)
 - [x] Git repository initialized at the workspace root (2026-10-01); first commit pushed to github.com/evanreynolds1116/JobAgents (`main`)
@@ -187,6 +190,12 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-05 (Milestone 10, salary check)
+- Live run with a $90k minimum (same search, temporary database, calls added to the app's count). Sent `salary_min=90000` with `salary_include_unknown=1`. 39 new jobs, 0 duplicates, none older than 3 days, every one with a range reaching $90k (lowest top of range $94,452; one range of $82k–$136k kept because it overlaps). The app's own salary rule dropped nothing because Adzuna had already applied the minimum. Compared with an unfiltered run a minute earlier, the minimum removed exactly two jobs, both Vontier "Software Engineer II" with estimated salaries of $70,719 and $75,238.
+- 6 calls were wasted: a failed script edit wasn't chained to the run, so the search ran once without the minimum. Adzuna calls today: 24 of 250.
+- Milestone 10 marked Done: every acceptance item checked; tests 236 passed, 1 skipped.
+- Then, per the user's choice (option b): the salary range is no longer sent to Adzuna; the app filters on stated salaries only and keeps estimate-only jobs labeled "est.". Tests: 236 passed, 1 skipped (new: an estimate-only job below the range is kept; no salary parameters are sent). Live re-run with the $90k minimum: no salary parameters sent; 41 new jobs, the same as with no minimum, including both Vontier jobs labeled as estimates; no stated salary under $90k came back. Adzuna calls today: 30 of 250.
 
 ### 2026-10-05 (Milestone 10, distance check)
 - Built the radius check the user chose (option b): `search/places.py` (offline city lookup and distance), `search/us_places.csv` and `scripts/build_places.py` (from the Census Gazetteer, downloaded with the user's OK). Results from city queries that aren't remote are dropped if the job's coordinates are farther than the radius from the city, reported as "outside your cities' radius". Saving a search with a city that isn't in the list shows a message.

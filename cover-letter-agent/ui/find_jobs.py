@@ -133,7 +133,8 @@ def _editor(searches: list[dict]) -> None:
             salary_max = high.number_input("Maximum salary ($)", value=c.salary_max or 0, step=5000, min_value=0)
             max_days = posted.selectbox("Posted", list(DATE_OPTIONS), index=list(DATE_OPTIONS).index(c.max_days_old),
                                         format_func=DATE_OPTIONS.get)
-            st.caption("Leave a salary at 0 for no limit. Postings with no salary are kept and labeled.")
+            st.caption("Leave a salary at 0 for no limit. Only salaries stated in the posting are checked; postings "
+                       "with no salary or only an Adzuna estimate are kept and labeled.")
             ex_companies = st.text_area("Skip these companies (optional)", value="\n".join(c.exclude_companies),
                                         height=70, placeholder="Staffing agencies, for example")
             ex_keywords = st.text_area("Skip postings with these words (optional)", value="\n".join(c.exclude_keywords),

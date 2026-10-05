@@ -42,6 +42,8 @@ RESPONSES = {
            "Hybrid role.", days_old=6),  # older than 3 days
         ad("105", "Software Engineer", "Lowball Inc", "Nashville, Davidson County",
            "Hybrid.", salary=(40000, 50000)),  # below the salary range
+        ad("107", "Software Engineer", "Guesswork Co", "Nashville, Davidson County",
+           "Hybrid.", salary=(50000, 55000), predicted=True),  # only Adzuna's estimate: kept and labeled
         ad("106", "Software Engineer", "TalentStaff Agency", "Nashville, Davidson County",
            "Hybrid contract role."),  # excluded company
     ],
@@ -124,7 +126,7 @@ def test_two_titles_two_cities_last_three_days(ready):
 
     assert result.calls == 6 == len(fake.requests)  # 2 titles x (2 cities + 1 remote)
     kept = {j["source_id"]: j for j in store.list_jobs("new")}
-    assert set(kept) == {"101", "103", "201", "203", "301", "401", "501"}
+    assert set(kept) == {"101", "103", "107", "201", "203", "301", "401", "501"}
     keys = [j["dedupe_key"] for j in kept.values()]
     assert len(keys) == len(set(keys))  # no duplicates
     assert result.duplicates == 2  # Acme listed twice, OnePay under two IDs
@@ -140,6 +142,7 @@ def test_two_titles_two_cities_last_three_days(ready):
     assert kept["501"]["work_setting"] == "remote"
     assert kept["103"]["work_setting"] == "unknown"
     assert kept["401"]["salary_estimated"] == 1
+    assert normalize.salary_label(kept["107"]) == "$50k–$55k est."
     assert store.calls_today("adzuna") == 6
     assert store.list_searches()[0]["last_run_at"] == NOW.isoformat()
 
@@ -151,8 +154,8 @@ def test_query_parameters_follow_adzuna_spec(ready):
     assert city["title_only"] == "Software Engineer"
     assert city["distance"] == "40"  # 25 miles in kilometres
     assert city["max_days_old"] == "3" and city["sort_by"] == "date" and city["results_per_page"] == "50"
-    assert city["salary_min"] == "60000" and city["salary_max"] == "150000"
-    assert city["salary_include_unknown"] == "1"  # no-salary postings are kept and labeled
+    # The salary range is checked by the app, not sent: Adzuna's filter also drops jobs on its estimates.
+    assert not {k for k in city if k.startswith("salary")}
     assert city["app_id"] == "test-id" and city["app_key"] == "test-key"
     remote = next(r for r in fake.requests if "where" not in r)
     assert remote["what"] == "remote" and "distance" not in remote
@@ -163,7 +166,7 @@ def test_rerun_finds_nothing_new(ready):
     run.run_searches([search], client=FakeAdzuna().client(), now=NOW)
     store.set_status(store.list_jobs("new")[0]["id"], "dismissed")
     again = run.run_searches([search], client=FakeAdzuna().client(), now=NOW)
-    assert again.new == 0 and again.duplicates == 9
+    assert again.new == 0 and again.duplicates == 10
     assert store.count_jobs()["dismissed"] == 1  # a dismissed job isn't brought back as new
 
 
@@ -221,7 +224,7 @@ def test_failed_query_is_reported_and_others_continue(ready):
     fake = FakeAdzuna(fail_on="Knoxville, TN")
     result = run.run_searches([saved(criteria())], client=fake.client(), now=NOW)
     assert len(result.errors) == 2 and "rejected the app ID or key" in result.errors[0]
-    assert result.new == 5  # everything except Regal in Knoxville
+    assert result.new == 6  # everything except the two Knoxville jobs (201, 203)
     assert store.calls_today("adzuna") == 6  # failed calls still count
 
 

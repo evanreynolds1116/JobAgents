@@ -64,12 +64,8 @@ def params(query: Query, criteria: SearchCriteria, app_id: str, app_key: str) ->
         p["distance"] = query.radius_km
     else:
         p["what"] = "remote"
-    if criteria.salary_min:
-        p["salary_min"] = criteria.salary_min
-    if criteria.salary_max:
-        p["salary_max"] = criteria.salary_max
-    if criteria.salary_min or criteria.salary_max:
-        p["salary_include_unknown"] = "1"  # keep postings with no salary; they're labeled instead
+    # The salary range isn't sent: Adzuna's salary filter also applies to its own estimates,
+    # dropping postings that never stated a salary. The app checks stated salaries instead.
     return p
 
 
