@@ -49,14 +49,24 @@ def test_summary():
     assert summary(rows) == "1 filled · 1 to review · 1 left for you"
 
 
-def test_needs_an_approved_letter(went, monkeypatch):
+def test_without_an_approved_letter_fills_without_one(went, monkeypatch):
     key()
     monkeypatch.setattr(session, "_current", None)
     draft = make("Acme", "Engineer")
     at = apply_page(draft)
-    assert "Approve the cover letter first" in at.warning[0].value
-    assert next(b for b in at.button if b.label == "Open the form").disabled
+    assert not at.warning and not next(b for b in at.button if b.label == "Open the form").disabled
+    assert any("No approved cover letter: the form is filled without one" in c.value for c in at.caption)
     assert "It never clicks Submit." in text(at)
+
+
+def test_needs_a_job_link(went, monkeypatch):
+    key()
+    monkeypatch.setattr(session, "_current", None)
+    from storage import db
+    app_id = db.create_application(None, "Posting text", "")
+    at = apply_page(app_id)
+    assert "no job link" in at.warning[0].value
+    assert next(b for b in at.button if b.label == "Open the form").disabled
 
 
 def test_open_the_form_starts_a_session(went, monkeypatch):
@@ -140,3 +150,46 @@ def test_detail_shows_recorded_answers(went):
     assert list(table["Value"]) == ["Jordan", "English, Spanish", ""]
     assert list(table["Source"]) == ["Your profile", "You", ""]
     assert list(table["Status"]) == ["Filled", "Your edit", "Left for you"]
+
+
+# --- Milestone 8 ------------------------------------------------------------------------
+
+
+def test_needs_letter_pause(went, monkeypatch):
+    key()
+    app_id = make("Acme", "Engineer")
+    fake = FakeSession(app_id, state="needs_letter", rows=[], message="This form requires a cover letter.")
+    monkeypatch.setattr(session, "_current", fake)
+    at = apply_page(app_id)
+    click(at, "Fill without it")
+    assert fake.sent == ["skip_letter"]
+    at = apply_page(app_id)
+    click(at, "Draft a cover letter")
+    assert fake.sent[-1] == "close" and went[-1] == ("new_letter", {"draft": app_id})
+
+
+def test_offer_to_save_typed_answers(went, monkeypatch):
+    from storage import answers
+
+    key()
+    app_id = make("Acme", "Engineer")
+    fake = FakeSession(app_id, state="done", rows=[], message="All filled.",
+                       offers=[{"label": "When could you start?", "value": "Two weeks after an offer"},
+                               {"label": "Preferred working hours?", "value": "Central time"}])
+    monkeypatch.setattr(session, "_current", fake)
+    at = apply_page(app_id)
+    assert "You typed an answer for **When could you start?**" in text(at)
+    click(at, "Save answer")
+    assert [(a["question"], a["answer"]) for a in answers.list_answers()] == [
+        ("When could you start?", "Two weeks after an offer")]
+    assert "When could you start?" not in text(at)
+    click(at, "Not now")
+    assert "Preferred working hours?" not in text(at) and answers.count() == 1
+
+
+def test_detail_offers_fill_without_letter(went):
+    key()
+    draft = make("Acme", "Engineer")
+    at = page("detail", draft)
+    click(at, "Fill without cover letter")
+    assert went[-1] == ("apply", {"app": draft})

@@ -22,7 +22,7 @@ SOURCES = ["profile", "application_answers", "saved_answer", "resume", "cover_le
 ACTIONS = ["fill", "upload_resume", "upload_cover_letter", "leave"]
 LETTER_PLACEHOLDER = "[approved cover letter]"
 SALARY = re.compile(r"\b(salary|compensation|pay (range|expectation)|expected pay|desired pay|rate)\b", re.I)
-CHOICE_KINDS = ("select", "radio", "checkbox_group")
+CHOICE_KINDS = ("select", "radio", "checkbox_group", "buttons")
 
 SCHEMA = {
     "type": "object",
@@ -153,6 +153,8 @@ def decide(f: Field, proposal: dict | None, sources: Sources) -> Decision:
         return leave(f.key, "The agent never answers these", "left_for_you")
     if guard.is_attestation(f.label):
         return leave(f.key, "Legal attestations and consent are left for you", "left_for_you")
+    if f.kind == "file" and re.search(r"autofill|auto-fill|parse", f.label, re.I):
+        return leave(f.key, "Not used: the agent fills the form itself", "left_for_you")
     if f.kind == "file":
         wants_letter = "cover" in f.label.lower() or (proposal or {}).get("action") == "upload_cover_letter"
         if wants_letter:

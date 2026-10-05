@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Software Engineer, Risk - OnePay</title>
+<style>.yesno button[aria-pressed=true]{background:#0F6E63;color:#fff} .hidden-input{position:absolute;opacity:0;width:1px}</style></head>
+<body>
+<!-- Made-up form shaped like an Ashby application (jobs.ashbyhq.com/<company>/<id>/application). -->
+<form id="application" onsubmit="window.__submitted = true; return false;">
+  <div class="field-entry"><label for="autofill">Autofill from resume</label>
+    <input type="file" id="autofill" class="hidden-input"><button>Upload file</button></div>
+  <div class="field-entry"><label class="_required_x question-title" for="_systemfield_name">Full Legal Name</label>
+    <input type="text" id="_systemfield_name" name="_systemfield_name" required></div>
+  <div class="field-entry"><label class="_required_x question-title" for="_systemfield_email">Email</label>
+    <input type="email" id="_systemfield_email" name="_systemfield_email" required></div>
+  <div class="field-entry"><label class="_required_x question-title" for="_systemfield_resume">Resume</label>
+    <input type="file" id="_systemfield_resume" class="hidden-input" required><button>Upload File</button></div>
+  <div class="field-entry"><label class="_required_x question-title" for="cover">Cover Letter</label>
+    <input type="file" id="cover" class="hidden-input" required><button>Upload File</button></div>
+  <div class="field-entry"><label class="_required_x question-title" for="q-auth">Are you currently authorized to work lawfully in the United States?</label>
+    <div class="yesno"><button aria-pressed="false" data-option="yes">Yes</button><button aria-pressed="false" data-option="no">No</button>
+      <input type="checkbox" class="hidden-input" tabindex="-1" name="q-auth"></div></div>
+  <div class="field-entry"><label class="_required_x question-title" for="q-spons">Will you now or in the future require employment-based immigration sponsorship?</label>
+    <div class="yesno"><button aria-pressed="false" data-option="yes">Yes</button><button aria-pressed="false" data-option="no">No</button>
+      <input type="checkbox" class="hidden-input" tabindex="-1" name="q-spons"></div></div>
+  <div class="field-entry"><fieldset><legend class="question-title">How many years of professional experience do you have as an engineer?</legend>
+    <label><input type="radio" name="years" value="0-3"> 0-3 years</label><label><input type="radio" name="years" value="3-7"> 3-7 years</label>
+    <label><input type="radio" name="years" value="7-10"> 7-10 years</label></fieldset></div>
+  <div class="field-entry"><label class="_required_x question-title" for="why">Why are you interested in OnePay?</label>
+    <textarea id="why" required></textarea></div>
+  <div class="field-entry"><label class="question-title" for="book">What is the last book you read?</label>
+    <input type="text" id="book"></div>
+  <div class="field-entry"><label class="question-title" for="start">When could you start?</label>
+    <input type="text" id="start" value="Two weeks after an offer"></div>
+  <div class="field-entry"><fieldset><legend class="question-title">Gender</legend>
+    <label><input type="radio" name="gender" value="m"> Male</label><label><input type="radio" name="gender" value="f"> Female</label>
+    <label><input type="radio" name="gender" value="d"> Decline to self-identify</label></fieldset></div>
+  <button type="submit">Submit Application</button>
+</form>
+<script>
+// Ashby's Yes/No toggles: pressing one sets aria-pressed and the hidden checkbox. Like Ashby,
+// it stops the button's default (a <button> with no type would submit the form).
+document.querySelectorAll('.yesno').forEach(box => {
+  const buttons = box.querySelectorAll('button');
+  buttons.forEach(b => b.addEventListener('click', e => {
+    e.preventDefault();
+    buttons.forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+    box.querySelector('input').checked = b.dataset.option === 'yes';
+  }));
+});
+document.querySelectorAll('.field-entry > button').forEach(b => b.addEventListener('click', e => e.preventDefault()));
+</script>
+</body></html>

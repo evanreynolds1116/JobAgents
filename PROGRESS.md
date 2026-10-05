@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 7. Greenhouse and Lever filler (built; live check on 5 real postings needs you); 11 is waiting on your labels, 5 on your scores
-- **Next step:** Fill in your application answers on Profile & resume, then pick 5 real Greenhouse or Lever postings for the Milestone 7 live check (see Blockers); separately, label the Milestone 11 sheet and score the Milestone 5 evaluation
+- **Current milestone:** 7 and 8 built; their live checks on real postings need you. 11 is waiting on your labels, 5 on your scores
+- **Next step:** Fill in your application answers on Profile & resume, then run the live checks: 5 Greenhouse or Lever postings (Milestone 7) and 5 from other platforms such as Ashby (Milestone 8); see Blockers. Separately, label the Milestone 11 sheet and score the Milestone 5 evaluation
 - **Last updated:** 2026-10-05
 
 ## Build order
@@ -35,7 +35,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 12 | Hand-off and schedule | 3. Job search | Done (2026-10-05) |
 | 6 | Application profile | 2. Application | Done (2026-10-05) |
 | 7 | Greenhouse and Lever filler | 2. Application | In progress (built and tested; live check on 5 real postings pending) |
-| 8 | General forms and answer learning | 2. Application | Not started |
+| 8 | General forms and answer learning | 2. Application | In progress (built and tested; live check on 5 postings pending) |
 | 9 | Multi-step platforms (stretch) | 2. Application | Not started |
 
 ## Acceptance criteria
@@ -100,8 +100,8 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Every field's final value, including the user's edits, is saved to the application's record and shown on its detail page (`filled_answers`; detail page "Your answers" tab; values that differ from what the agent entered are recorded as yours)
 
 **Milestone 8. General forms and answer learning**
-- [ ] On 5 postings from other platforms, every required field is filled or clearly flagged
-- [ ] Fill without cover letter works, and pauses when a form requires a cover letter
+- [ ] On 5 postings from other platforms, every required field is filled or clearly flagged (needs your answers and 5 postings; a real Ashby form read read-only: all 15 fields correct, including Yes/No toggle questions)
+- [x] Fill without cover letter works, and pauses when a form requires a cover letter (from the shortlist's More menu, a pasted link on New cover letter, or any application without an approved letter; tested end to end on an Ashby-shaped form that requires a letter: pause, Draft a cover letter or Fill without it)
 
 **Milestone 9. Multi-step platforms (stretch)**
 - [ ] A full Workday application reaches the final review page, with the user handling the login
@@ -183,12 +183,18 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-05 | Field mapping: one Claude call per page (`agent/prompts/map_fields.md`, effort `medium`) with the fields, profile, application answers, saved answers, resume and which files exist. Free-text screening questions are left for you until Milestone 8 drafts them | Spec: Claude maps fields; drafting screening answers is Milestone 8 | n/a |
 | 2026-10-05 | Finding the form: the browser follows the link; navigation to LinkedIn, Indeed, Glassdoor, Jobright and HiringCafe is blocked (and a page that redirects there stops before it's read); on a posting page the Apply *link* is opened by its address (buttons are never pressed); embedded Greenhouse forms are opened directly. Real Adzuna links answer the app's automated browser with HTTP 403 ("suspicious behaviour"), so the agent stops, says so, and the Fill application screen offers a box for the company's own link | The app doesn't get around bot protection; this changes the "reaches the right form from Adzuna links" acceptance item | Pending |
 | 2026-10-05 | Milestone 7 starts only from an application with an approved letter (Fill application on the review and detail screens). The approved letter is uploaded as a PDF (a .docx if no PDF maker is installed) and pasted into cover-letter text boxes | Spec: Fill application is from an approved letter; Fill without cover letter is Milestone 8 | n/a |
+| 2026-10-05 | Superseded by Milestone 8: Fill application works for any application with a job link. With an approved letter it's uploaded or pasted; without one the form is filled without a letter, and if a required field asks for a cover letter the agent pauses with Draft a cover letter (opens the cover letter agent on the saved posting) or Fill without it | Spec: Fill without cover letter | n/a |
+| 2026-10-05 | Second Submit safety net: while the agent clicks, a capture-phase listener cancels any form submission the click causes (a `<button>` with no type submits its form by default, and Ashby's Yes/No toggles are such buttons). Your own clicks aren't affected | The click guard checks labels and types; this covers a typeless button on a page that forgot to stop its default | n/a |
+| 2026-10-05 | Toggle-button questions (two or more `aria-pressed` buttons, Ashby's Yes/No) are read as a "buttons" field and answered by clicking the option; Ashby's "Autofill from resume" upload is left alone; fields are listed in page order | Ashby's form structure, read from a real OnePay form | n/a |
+| 2026-10-05 | Screening answers: open questions the mapping left blank (ending in ? or starting why/what/how/describe/tell us/share/explain; not contact details, salary, sensitive or attestation questions) are drafted in one Claude call per page (`agent/prompts/screening.md`, effort `medium`) from the resume, profile, notes, saved posting, approved letter and writing samples, with the banned-phrase list; linter hits are noted, and every draft is marked for review and outlined. A question the sources can't honestly answer stays blank. No separate claim check | Spec: drafted with the same style rules, then highlighted for review; the claim check would add a call per page for a few short answers you review anyway | Pending |
+| 2026-10-05 | Answer learning: when the final values are saved, any answer you typed (or that differs from the agent's) to a real question, not contact details, files, salary, sensitive or attestation fields, is offered with Save answer / Not now; saved answers go to `saved_answers` and are reused by the mapping. Each saved answer the agent reuses has its times-used count increased | Spec: offer to save answers you type | n/a |
 | 2026-10-01 | Find jobs screen per the mockup, minus the Fit column (Milestone 11) and Start letter (Milestone 12). Job titles link to the posting; Save / Dismiss / Move to New change the job's status | Milestone 10 scope | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
 ## Blockers & open questions
 
 - [ ] Milestone 7 live check: fill in your application answers, then choose 5 real Greenhouse or Lever postings you'd consider applying to. Each needs an application with an approved letter (about $0.10 per letter, a few cents per form mapping). The agent then fills each form in a visible Chrome window with your real details, never submitting; you watch, and we count fields filled correctly (target 90% of non-sensitive fields)
+- [ ] Milestone 8 live check: 5 postings from other platforms (Ashby, SmartRecruiters, Workable or company forms), with Fill without cover letter on at least one; target: every required field filled or clearly flagged
 - [ ] Approve or change the Adzuna-link decision: Adzuna blocks the app's browser (HTTP 403), so for Adzuna jobs you paste the company's link on the Fill application screen
 
 - [x] Watch-list dates: the date rule is skipped for watch-list jobs (user's choice, 2026-10-05)
@@ -220,6 +226,13 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-05 (Milestone 8, build)
+- Read a real Ashby form (OnePay) read-only: Yes/No questions are `aria-pressed` buttons over a hidden checkbox; added the "buttons" field kind, required detection from the label's class, page order, and the second Submit safety net.
+- Built screening-answer drafting (`apply/screening.py`, `agent/prompts/screening.md`), the needs-letter pause, offers to save typed answers, saved-answer reuse counts, and Fill without cover letter from the shortlist (More menu), New cover letter ("Fill without a letter" for a pasted link) and the detail page; New cover letter can draft for an existing application (`?draft=`).
+- Found while testing: refreshing just the live section from a button click errors in Streamlit; switched to a full refresh.
+- Checked the new buttons in the running app; no server errors.
+- Tests: 401 passed, 1 skipped. New: `test_apply_m8.py` (Ashby-shaped form, toggle buttons, agent clicks never submit while yours can, screening question detection, drafting request and review marking, offers, reuse counts, a whole session without a letter: pause, skip, draft, offer) and screen tests for the pause, offers, and the Fill without cover letter entry points.
 
 ### 2026-10-05 (Milestone 7, build)
 - Installed Playwright 1.63 (your OK) and confirmed it drives Chrome 154. Probed a real Greenhouse form (Axios) and a real Lever form (Palantir) read-only to learn their structure (saved in the gitignored `tests/fixtures/real/forms/`): Greenhouse uses searchable dropdowns (react-select) for country, location, how-did-you-hear and authorization questions; Lever uses plain inputs and radio and checkbox groups with the question in a wrapper.

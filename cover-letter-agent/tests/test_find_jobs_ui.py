@@ -217,3 +217,21 @@ def test_watch_list_source_and_schedule_card(keys):
     assert "Tilt · via watch list (Lever)" in page and "1 company" in page
     assert "Daily run" in [s.value for s in at.subheader]
     assert any(c.value.startswith("Off. Searches run only when you click Run search now.") for c in at.caption)
+
+
+
+def test_fill_without_cover_letter_from_the_shortlist(keys, monkeypatch):
+    from ui import nav
+
+    went = []
+    monkeypatch.setattr(nav, "go", lambda key, **params: went.append((key, params)))
+    save_search()
+    add_job("1", "Software Engineer", "Acme Health", fit=5)
+    job_id = store.list_jobs("new")[0]["id"]
+    at = open_page()
+    click(at, "Fill without cover letter")
+    app = db.get_application(1)
+    assert went == [("apply", {"app": 1})]
+    assert app["job_id"] == job_id and app["company"] == "Acme Health" and app["url"].endswith("/ad/1")
+    assert app["posting_text"].startswith("Job title: Software Engineer")
+    assert store.get_job(job_id)["status"] == "applying"

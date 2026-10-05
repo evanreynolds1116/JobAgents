@@ -529,3 +529,30 @@ def test_new_letter_from_the_sidebar_forgets_the_job(calls):
     at.text_input(key="nl_url").input("https://harpeth.example/careers/marketing")
     click(at, "Generate draft")
     assert db.get_application(1)["job_id"] is None
+
+
+
+def test_fill_without_a_letter_from_a_pasted_link(calls):
+    at = open_new_letter()
+    at.text_input(key="nl_url").input("https://harpeth.example/careers/marketing")
+    click(at, "Fill without a letter")
+    assert calls.went == [("apply", {"app": 1})] and calls.counts["fetch"] == 1 and calls.counts["draft"] == 0
+    app = db.get_application(1)
+    assert app["url"] == "https://harpeth.example/careers/marketing" and app["posting_text"] == POSTING
+    assert db.list_drafts(1) == []
+
+
+def test_fill_without_a_letter_needs_a_link(calls):
+    at = open_new_letter()
+    click(at, "Fill without a letter")
+    assert "Add the job posting link first." in [e.value for e in at.error] and calls.went == []
+
+
+def test_draft_for_an_existing_application(calls):
+    app_id = db.create_application("https://harpeth.example/careers/marketing", POSTING, "")
+    at = AppTest.from_function(_new_letter_script, default_timeout=30)
+    at.query_params["draft"] = str(app_id)
+    at.run()
+    assert not at.exception, at.exception
+    assert calls.went == [("review", {"app": app_id})] and calls.counts["draft"] == 1
+    assert len(db.list_drafts(app_id)) == 1

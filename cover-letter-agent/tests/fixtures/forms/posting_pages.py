@@ -14,7 +14,15 @@ def page(body: str) -> str:
     return f"<!doctype html><html><head><meta charset='utf-8'></head><body>{body}</body></html>"
 
 
+ASHBY_FORM = "https://jobs.ashbyhq.com/onepay/123/application"
+NO_PREVENT = page(  # a typeless button whose page forgot to stop the default: it would submit
+    "<form onsubmit='window.__submitted = true; return false;'><label for='n'>Name</label><input id='n'>"
+    "<label for='e'>Email</label><input id='e' type='email'><label for='p'>Phone</label><input id='p'>"
+    "<button id='plain'>Yes</button></form>")
+
 PAGES = {
+    ASHBY_FORM: (HERE / "ashby_like.html").read_text(encoding="utf-8"),
+    "https://careers.acme.example/no-prevent": NO_PREVENT,
     GREENHOUSE_FORM: (HERE / "greenhouse_like.html").read_text(encoding="utf-8"),
     LEVER_FORM: (HERE / "lever_like.html").read_text(encoding="utf-8"),
     LEVER_POSTING: page("<h1>Backend Engineer</h1><p>Build payment APIs.</p>"

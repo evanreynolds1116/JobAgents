@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass, field
 from apply import guard
 
 KINDS = ("text", "email", "tel", "url", "number", "date", "textarea", "select", "combobox", "radio",
-         "checkbox_group", "checkbox", "file")
+         "checkbox_group", "checkbox", "buttons", "file")  # buttons: a Yes/No toggle-button question
 
 
 @dataclass
@@ -67,15 +67,40 @@ READ_FIELDS = r"""
     if (!clean(t)) t = el.getAttribute('placeholder') || el.name || el.id || '';
     return clean(t);
   };
+  const labelElement = el => (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) ||
+                             (el.name && document.querySelector(`label[for="${CSS.escape(el.name)}"]`)) || null;
   const isRequired = (el, rawLabel) => el.required || el.getAttribute('aria-required') === 'true' ||
                                        groupOf(el)?.getAttribute('aria-required') === 'true' ||
+                                       /required/i.test(labelElement(el)?.className || '') ||
                                        /[*✱]/.test(rawLabel || '');
 
   const fields = [];
+  const elementOf = {};
   const groups = new Map();
   let n = 0;
+
+  // Toggle-button questions (Ashby's Yes/No): two or more buttons with aria-pressed, often
+  // with a hidden checkbox behind them.
+  const toggles = [];
+  for (const box of document.querySelectorAll('div, fieldset, span')) {
+    const buttons = [...box.children].filter(c => c.tagName === 'BUTTON' && c.hasAttribute('aria-pressed'));
+    if (buttons.length < 2 || !visible(box) || box.closest('[data-ja-ignore]')) continue;
+    toggles.push(box);
+    const key = 'f' + (n++);
+    buttons.forEach((b, i) => { b.setAttribute('data-ja-key', key); b.setAttribute('data-ja-option', i); });
+    const options = buttons.map(b => clean(b.innerText));
+    const hidden = box.querySelector('input');
+    const lab = hidden ? labelElement(hidden) : null;
+    const label = clean(lab?.innerText) || questionFor(box, options);
+    elementOf[key] = box;
+    fields.push({key, kind: 'buttons', label, options, multiple: false,
+                 required: /required/i.test(lab?.className || '') || /[*✱]/.test(lab?.innerText || ''),
+                 value: options[buttons.findIndex(b => b.getAttribute('aria-pressed') === 'true')] || ''});
+  }
+
   const controls = document.querySelectorAll('input, select, textarea');
   for (const el of controls) {
+    if (toggles.some(t => t.contains(el))) continue;
     const type = (el.getAttribute('type') || el.type || '').toLowerCase();
     if (['hidden', 'submit', 'button', 'image', 'reset', 'search'].includes(type)) continue;
     if (el.getAttribute('aria-hidden') === 'true' || el.disabled) continue;
@@ -115,12 +140,14 @@ READ_FIELDS = r"""
     } else if (kind === 'file') {
       value = el.files && el.files.length ? el.files[0].name : '';
     }
+    elementOf[key] = el;
     fields.push({key, kind, label, required: isRequired(el, rawLabel || label), options, value, multiple});
   }
   for (const [name, inputs] of groups) {
     const key = 'f' + (n++);
     const optionLabels = inputs.map(i => labelFor(i));
     inputs.forEach((i, idx) => { i.setAttribute('data-ja-key', key); i.setAttribute('data-ja-option', idx); });
+    elementOf[key] = inputs[0];
     const single = inputs.length === 1 && inputs[0].type === 'checkbox';
     const label = single ? optionLabels[0] : questionFor(inputs[0], optionLabels);
     fields.push({
@@ -133,7 +160,9 @@ READ_FIELDS = r"""
       multiple: inputs[0].type === 'checkbox' && !single,
     });
   }
-  return fields;
+  // Page order, so the review table reads like the form.
+  return fields.sort((a, b) =>
+    elementOf[a.key].compareDocumentPosition(elementOf[b.key]) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
 }
 """
 

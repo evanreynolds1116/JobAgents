@@ -84,7 +84,8 @@ def _actions(app: dict, drafts: list[dict]) -> None:
     with st.container(horizontal=True):
         if drafts and st.button("Open letter", type="primary"):
             nav.go("review", app=app_id)
-        if app["status"] == "approved" and st.button("Fill application"):
+        if app.get("url") and app["status"] in ("draft", "approved") and st.button(
+                "Fill application" if app["status"] == "approved" else "Fill without cover letter"):
             nav.go("apply", app=app_id)
         if app["status"] in ("draft", "approved") and st.button("Mark as submitted"):
             db.mark_submitted(app_id)

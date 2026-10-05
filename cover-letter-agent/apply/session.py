@@ -6,9 +6,11 @@ application screen sends it commands (confirm, resume, continue, stop, close) an
 snapshot of where it is. One session at a time.
 
 Steps: open the link and find the form -> wait for you to confirm it -> pause if the site
-needs a login or shows a CAPTCHA -> read, map and fill the page -> wait for you to review
-and continue -> save every field's final value -> next page, or stop on the last one and
-hand over. The browser stays open so you can submit; the agent never does.
+needs a login or shows a CAPTCHA -> read and map the page, draft screening answers, and
+pause if the form requires a cover letter you don't have -> fill -> wait for you to review
+and continue -> save every field's final value and offer to save answers you typed -> next
+page, or stop on the last one and hand over. The browser stays open so you can submit; the
+agent never does.
 """
 
 import copy
@@ -20,12 +22,15 @@ from pathlib import Path
 
 import config
 from apply import extract, fill, guard, resolve
-from apply.mapping import Decision
+from apply.mapping import SALARY, Decision
 from storage import filled
 
 PROFILE_DIR_NAME = "browser_profile"
 WAIT_STEP_MS = 300
 NEXT_WORDS = re.compile(r"^\s*(next|continue|save (and|&) continue|next step|proceed)\b", re.I)
+COVER_LETTER = re.compile(r"cover letter|motivation letter|letter of interest", re.I)
+NOT_WORTH_SAVING = re.compile(r"\b(name|e-?mail|phone|linkedin|github|website|url|portfolio|address|city|zip|"
+                              r"postal|resume|cv|cover letter)\b", re.I)
 
 CHECK_PAGE = r"""
 () => {
@@ -56,13 +61,15 @@ class Closed(Exception):
 
 class Session:
     def __init__(self, app_id: int, url: str, mapper: Callable, files: dict[str, Path | None],
-                 launcher: Callable = launch_browser, headless: bool = False, setup: Callable | None = None):
+                 launcher: Callable = launch_browser, headless: bool = False, setup: Callable | None = None,
+                 drafter: Callable | None = None, after_fill: Callable | None = None, has_letter: bool = True):
         self.app_id, self.url, self.mapper, self.files = app_id, url, mapper, files
         self.launcher, self.headless, self.setup = launcher, headless, setup
+        self.drafter, self.after_fill, self.has_letter = drafter, after_fill, has_letter
         self._commands: queue.Queue[str] = queue.Queue()
         self._lock = threading.Lock()
         self._state = {"state": "starting", "message": "Opening the browser…", "url": url, "platform": "",
-                       "steps": [], "page": 1, "rows": [], "pages_done": [], "error": ""}
+                       "steps": [], "page": 1, "rows": [], "pages_done": [], "error": "", "offers": []}
         self.thread = threading.Thread(target=self._run, name=f"fill-{app_id}", daemon=True)
 
     # Talking to the screen ------------------------------------------------------------
@@ -154,10 +161,23 @@ class Session:
                                                  "then click Resume.")
                 if self._wait(page, "resume", "stop") == "stop":
                     self._stopped(page)
-            self._set(state="filling", message=f"Reading and filling page {page_no}…")
+            self._set(state="filling", message=f"Reading page {page_no} and working out the answers…")
             fields = extract.read_fields(page)
             decisions = self.mapper(fields)
+            if self.drafter:
+                self._set(message="Drafting answers to the screening questions…")
+                decisions = self.drafter(fields, decisions)
+            if not self.has_letter and any(f.required and COVER_LETTER.search(f.label) for f in fields):
+                self._set(state="needs_letter",
+                          message="This form requires a cover letter, and this application doesn't have an approved "
+                                  "one. Draft one with the cover letter agent, or fill the rest and leave the letter "
+                                  "for you.")
+                if self._wait(page, "skip_letter", "stop") == "stop":
+                    self._stopped(page)
+            self._set(state="filling", message=f"Filling page {page_no}…")
             decisions = fill.fill_page(page, fields, decisions, self.files)
+            if self.after_fill:
+                self.after_fill(fields, decisions)
             labels = {f.key: f for f in fields}
             self._set(state="review", rows=[_row(labels[d.key], d) for d in decisions],
                       message=f"Paused on page {page_no}. Check the fields in the browser window and fix anything "
@@ -187,8 +207,20 @@ class Session:
             status = "you" if changed else (d.status if value or d.status == "left_for_you" else "needs_you")
             rows.append({"label": f.label, "value": value, "source": source, "status": status})
         filled.save_page(self.app_id, page_no, rows)
+        offers = [{"label": f.label, "value": row["value"]} for f, row in zip(fields, rows)
+                  if row["source"] == "you" and worth_saving(f, row["value"])]
         with self._lock:
             self._state["pages_done"].append(page_no)
+            self._state["offers"].extend(offers)
+
+
+def worth_saving(f, value) -> bool:
+    """An answer you typed that later applications could reuse: a real question, not contact
+    details, files, salary or anything the agent never answers."""
+    return (bool(value) and isinstance(value, str) and f.kind in ("text", "textarea", "select", "radio", "buttons",
+                                                                    "combobox")
+            and not NOT_WORTH_SAVING.search(f.label) and not SALARY.search(f.label)
+            and not guard.is_sensitive(f.label) and not guard.is_attestation(f.label))
 
 
 def _plain(value) -> str:
@@ -201,6 +233,8 @@ def _row(f, d: Decision) -> dict:
     shown = d.value if not isinstance(d.value, list) else ", ".join(d.value)
     if d.source == "cover_letter" and d.action == "fill":
         shown = f"Approved letter, {len(str(d.value).split())} words"
+    elif d.source == "drafted":
+        shown = f"Draft, {len(str(d.value).split())} words (highlighted in the browser)"
     return {"label": f.label, "kind": f.kind, "required": f.required, "value": shown, "source": d.source,
             "status": d.status, "note": d.note}
 

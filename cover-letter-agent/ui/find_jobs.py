@@ -157,6 +157,20 @@ def _schedule_card() -> None:
         st.caption(schedule_status(s, schedule.next_run()))
 
 
+def _fill_without_letter(job: dict) -> None:
+    """Save the job as an application with no letter and open the form filler."""
+    from storage import db
+    from ui.new_letter import posting_from_job
+
+    if app_id := store.application_for_job(job["id"]):
+        nav.go("apply", app=app_id)
+        return
+    app_id = db.create_application(job["apply_url"] or None, posting_from_job(job))
+    db.update_application(app_id, job_id=job["id"], company=job["company"], title=job["title"])
+    store.set_status(job["id"], "applying")
+    nav.go("apply", app=app_id)
+
+
 def _start_letter(job: dict) -> None:
     """One click from the shortlist: open the letter already started for this job, or start
     one on the New cover letter screen."""
@@ -268,6 +282,10 @@ def _results() -> None:
                 elif status in ("new", "saved") and st.button("Start letter", key=f"fj_letter_{job['id']}",
                                                               type="primary"):
                     _start_letter(job)
+                if status in ("new", "saved"):
+                    with st.popover("More", key=f"fj_more_{job['id']}"):
+                        if st.button("Fill without cover letter", key=f"fj_fill_{job['id']}"):
+                            _fill_without_letter(job)
                 if status == "new" and st.button("Save", key=f"fj_save_{job['id']}"):
                     store.set_status(job["id"], "saved")
                     st.rerun()

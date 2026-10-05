@@ -65,6 +65,8 @@ def fill_field(page, f: Field, d: Decision, files: dict[str, Path | None]) -> bo
     elif f.kind in ("radio", "checkbox_group"):
         for v in values:
             _check(control.nth(f.options.index(v)))
+    elif f.kind == "buttons":
+        guard.safe_click(control.nth(f.options.index(values[0])))
     elif f.kind == "combobox":
         return all(_pick_combobox(page, f.key, v) for v in values)
     else:

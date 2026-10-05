@@ -10,6 +10,7 @@ from html import escape
 import streamlit as st
 
 from apply import session, start
+from storage import answers as answer_store
 from storage import db
 from ui import nav
 
@@ -18,7 +19,8 @@ FINISHED = ("done", "stopped", "blocked", "error", "closed")
 STATUS = {"filled": "Filled", "review": "Review", "needs_you": "Needs you", "left_for_you": "Left for you",
           "you": "Your edit"}
 SOURCE = {"profile": "Your profile", "application_answers": "Application answers", "saved_answer": "Saved answer",
-          "resume": "Your resume", "cover_letter": "Approved letter", "none": "", "you": "You"}
+          "resume": "Your resume", "cover_letter": "Approved letter", "drafted": "Drafted for you", "none": "",
+          "you": "You"}
 
 
 def _app_id() -> int | None:
@@ -63,8 +65,11 @@ def _not_started(app: dict) -> None:
     with st.container(border=True, key="card_fill_start"):
         st.markdown("A Chrome window opens with the app's own profile. The agent finds the application form, "
                     "asks you to confirm it, fills what it can from your profile, resume, application answers "
-                    "and approved letter, and pauses for you to review. **It never clicks Submit.** You log in "
-                    "and solve any CAPTCHA yourself.")
+                    "and approved letter, drafts short screening answers for you to check, and pauses for you to "
+                    "review. **It never clicks Submit.** You log in and solve any CAPTCHA yourself.")
+        if not start.has_letter(app):
+            st.caption("No approved cover letter: the form is filled without one. If it requires a letter, the agent "
+                       "pauses and offers to draft one.")
         found = start.problems(app)
         for problem in found:
             st.warning(problem)
@@ -80,6 +85,23 @@ def _not_started(app: dict) -> None:
                 st.error(str(exc))
             else:
                 st.rerun()
+
+
+def _offers(offers: list[dict]) -> None:
+    """Answers you typed that the agent didn't have: save them for later applications?"""
+    handled = st.session_state.setdefault("ap_offers_done", set())
+    for i, offer in enumerate(o for o in offers if o["label"] not in handled):
+        with st.container(border=True, key=f"ap_offer_{i}"):
+            st.markdown(f"You typed an answer for **{escape(offer['label'])}**: “{escape(str(offer['value']))}”. "
+                        "Save it for future applications?", unsafe_allow_html=True)
+            with st.container(horizontal=True):
+                if st.button("Save answer", type="primary", key=f"ap_offer_save_{i}"):
+                    answer_store.save(offer["label"], str(offer["value"]))
+                    handled.add(offer["label"])
+                    st.rerun()
+                if st.button("Not now", key=f"ap_offer_skip_{i}"):
+                    handled.add(offer["label"])
+                    st.rerun()
 
 
 def _other_link(app_id: int, current) -> None:
@@ -112,7 +134,13 @@ def _live(app_id: int) -> None:
             current.send("resume")
         if state == "review" and st.button(f"Continue from page {snap['page']}", type="primary", key="ap_continue"):
             current.send("continue")
-        if state in ("confirm", "login", "review") and st.button("Stop filling", key="ap_stop"):
+        if state == "needs_letter":
+            if st.button("Draft a cover letter", type="primary", key="ap_draft_letter"):
+                current.send("close")
+                nav.go("new_letter", draft=app_id)
+            if st.button("Fill without it", key="ap_skip_letter"):
+                current.send("skip_letter")
+        if state in ("confirm", "login", "review", "needs_letter") and st.button("Stop filling", key="ap_stop"):
             current.send("stop")
         if state in FINISHED and state != "closed" and st.button("Close browser", key="ap_close"):
             current.send("close")
@@ -123,6 +151,7 @@ def _live(app_id: int) -> None:
     kind(snap["message"] + (f"\n\n{snap['error']}" if snap["error"] else ""))
     if state == "blocked":
         _other_link(app_id, current)
+    _offers(snap.get("offers", []))
 
     if snap["steps"]:
         with st.container(border=True, key="ap_route"):

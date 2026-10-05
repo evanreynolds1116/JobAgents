@@ -71,6 +71,34 @@ def _from_job(job_id: int) -> None:
     st.session_state.nl_paste = ""
 
 
+def _draft_for(app_id: int) -> None:
+    """Draft a letter for an application that already has its posting (for example, one the
+    form filler found needs a letter)."""
+    if st.session_state.get("nl_draft_loaded") == app_id:
+        return
+    st.session_state.nl_draft_loaded = app_id
+    if db.get_application(app_id):
+        _clear_status()
+        _run(app_id)
+
+
+def _fill_without_letter() -> None:
+    """Save the link as an application with no letter and open the form filler."""
+    url = (st.session_state.get("nl_url") or "").strip()
+    if not url:
+        st.session_state.nl_problem = "Add the job posting link first."
+        st.rerun()
+    if existing := db.find_by_url(url):
+        nav.go("apply", app=existing["id"])
+    with st.spinner("Saving the posting…"):
+        result = fetch.fetch(url)
+    text = result.text if result.ok else ""
+    app_id = db.create_application(url, text, st.session_state.get("nl_notes", ""))
+    if result.ok and result.hints:
+        db.update_application(app_id, company=result.hints.get("company"), title=result.hints.get("title"))
+    nav.go("apply", app=app_id)
+
+
 def _job_note() -> None:
     job = job_store.get_job(st.session_state.nl_job)
     if not job:
@@ -93,6 +121,8 @@ def new_letter_page() -> None:
                 nav.go("profile")
         return
 
+    if draft_for := st.query_params.get("draft"):
+        _draft_for(int(draft_for))
     if job_id := st.query_params.get("job"):
         _from_job(int(job_id))
     else:  # opened from the sidebar: a job from an earlier visit no longer applies
@@ -133,9 +163,15 @@ def new_letter_page() -> None:
         tone, length = st.columns(2)
         tone.selectbox("Tone", profile_store.TONES, key="nl_tone")
         length.selectbox("Length", profile_store.LENGTHS, key="nl_length")
-        if st.button("Generate draft", type="primary"):
-            _clear_status()
-            _start()
+        with st.container(horizontal=True):
+            if st.button("Generate draft", type="primary"):
+                _clear_status()
+                _start()
+            if st.button("Fill without a letter", key="nl_fill_only",
+                         help="Skip the cover letter and open the application form in Chrome. The agent never "
+                              "submits."):
+                _clear_status()
+                _fill_without_letter()
 
     with aside, st.container(border=True, key="card_next"):
         st.subheader("What happens next", anchor=False)

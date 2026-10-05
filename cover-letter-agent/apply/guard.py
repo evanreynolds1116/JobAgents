@@ -45,12 +45,36 @@ def describe(locator) -> tuple[str, str, str]:
         "(el.getAttribute('type') || '').toLowerCase(), el.tagName.toLowerCase()]")
 
 
+# While the agent clicks, any form submission that click causes is cancelled (a <button>
+# with no type submits its form by default). Your own clicks aren't affected.
+ARM = """() => {
+  if (!window.__jaGuard) {
+    window.__jaGuard = true;
+    document.addEventListener('submit', e => {
+      if (window.__jaAgentClick) { e.preventDefault(); e.stopImmediatePropagation(); window.__jaBlockedSubmits = (window.__jaBlockedSubmits || 0) + 1; }
+    }, true);
+  }
+  window.__jaAgentClick = true;
+}"""
+DISARM = "() => { window.__jaAgentClick = false; }"
+
+
 def safe_click(locator) -> None:
-    """The only way the agent clicks. Refuses anything that looks like Submit."""
+    """The only way the agent clicks. Refuses anything that looks like Submit, and cancels
+    any form submission the click would cause."""
     text, element_type, tag = describe(locator)
     if looks_like_submit(text, element_type, tag):
         raise SubmitBlocked(f"Blocked a click on “{text or element_type}”: the agent never submits.")
-    locator.click()
+    page = locator.page
+    page.evaluate(ARM)
+    try:
+        locator.click()
+        page.wait_for_timeout(50)  # let the click's events run while armed
+    finally:
+        try:
+            page.evaluate(DISARM)
+        except Exception:  # noqa: BLE001 - the click navigated away; nothing left to disarm
+            pass
 
 
 def is_sensitive(label: str) -> bool:
