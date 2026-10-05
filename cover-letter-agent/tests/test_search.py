@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 import config
-from search import adzuna, normalize, run
+from search import adzuna, normalize, places, run
 from search.criteria import City, SearchCriteria
 from storage import db
 from storage import jobs as store
@@ -14,13 +14,16 @@ from storage import jobs as store
 NOW = datetime(2026, 10, 1, 9, 0, 0)
 
 
-def ad(id_, title, company, location, description="", days_old=0.5, salary=None, predicted=False):
+def ad(id_, title, company, location, description="", days_old=0.5, salary=None, predicted=False,
+       coords=(36.16, -86.78)):
     # Adzuna sends UTC times ending in Z.
     created = (NOW - timedelta(days=days_old)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     item = {"id": id_, "title": title, "company": {"display_name": company},
             "location": {"display_name": location, "area": ["US"]}, "description": description,
             "created": created, "redirect_url": f"https://www.adzuna.com/land/ad/{id_}",
-            "latitude": 36.16, "longitude": -86.78, "contract_time": "full_time"}
+            "contract_time": "full_time"}
+    if coords:
+        item.update(latitude=coords[0], longitude=coords[1])
     if salary:
         item.update(salary_min=salary[0], salary_max=salary[1], salary_is_predicted="1" if predicted else "0")
     return item
@@ -34,7 +37,7 @@ RESPONSES = {
         ad("102", "Software Engineer", "Riverbend Labs", "Nashville, Davidson County",
            "This role is on-site five days a week."),  # on-site wasn't picked
         ad("103", "Software Engineer", "Mystery Co", "Franklin, Williamson County",
-           "Build APIs in Python.", days_old=2),  # setting unknown: kept and labeled
+           "Build APIs in Python.", days_old=2, coords=(35.925, -86.869)),  # setting unknown: kept and labeled
         ad("104", "Software Engineer", "Old Posting LLC", "Nashville, Davidson County",
            "Hybrid role.", days_old=6),  # older than 3 days
         ad("105", "Software Engineer", "Lowball Inc", "Nashville, Davidson County",
@@ -43,7 +46,13 @@ RESPONSES = {
            "Hybrid contract role."),  # excluded company
     ],
     ("Software Engineer", "Knoxville, TN"): [
-        ad("201", "Software Engineer", "Regal Cinemas", "Knoxville, Knox County", "Hybrid team in Knoxville."),
+        ad("201", "Software Engineer", "Regal Cinemas", "Knoxville, Knox County", "Hybrid team in Knoxville.",
+           coords=(35.96, -83.92)),
+        # Adzuna's distance filter let this one through: Morristown is about 40 miles away.
+        ad("202", "AI Software Engineer", "Accenture", "Morristown, Hamblen County", "Build AI tools.",
+           coords=(36.204, -83.300)),
+        ad("203", "Software Engineer", "Pilot Co", "Knoxville, Knox County", "Hybrid in Knoxville.",
+           coords=None),  # no coordinates: left to Adzuna's filter
     ],
     ("Software Engineer", "remote"): [
         ad("301", "Software Engineer", "OnePay", "Seattle, King County", "This is a fully remote role."),
@@ -115,7 +124,7 @@ def test_two_titles_two_cities_last_three_days(ready):
 
     assert result.calls == 6 == len(fake.requests)  # 2 titles x (2 cities + 1 remote)
     kept = {j["source_id"]: j for j in store.list_jobs("new")}
-    assert set(kept) == {"101", "103", "201", "301", "401", "501"}
+    assert set(kept) == {"101", "103", "201", "203", "301", "401", "501"}
     keys = [j["dedupe_key"] for j in kept.values()]
     assert len(keys) == len(set(keys))  # no duplicates
     assert result.duplicates == 2  # Acme listed twice, OnePay under two IDs
@@ -125,6 +134,7 @@ def test_two_titles_two_cities_last_three_days(ready):
         "outside your salary range": 1,                    # 105
         "from excluded companies": 1,                      # 106
         "not remote and outside your cities": 2,           # 302 hybrid in Chicago, 303 on-site in Denver
+        "outside your cities' radius": 1,                  # 202 in Morristown, 40 miles from Knoxville
     }
     assert kept["301"]["work_setting"] == "remote" and kept["301"]["location"].startswith("Seattle")
     assert kept["501"]["work_setting"] == "remote"
@@ -153,7 +163,7 @@ def test_rerun_finds_nothing_new(ready):
     run.run_searches([search], client=FakeAdzuna().client(), now=NOW)
     store.set_status(store.list_jobs("new")[0]["id"], "dismissed")
     again = run.run_searches([search], client=FakeAdzuna().client(), now=NOW)
-    assert again.new == 0 and again.duplicates == 8
+    assert again.new == 0 and again.duplicates == 9
     assert store.count_jobs()["dismissed"] == 1  # a dismissed job isn't brought back as new
 
 
@@ -271,3 +281,28 @@ def test_criteria_round_trip_and_checks():
     rows = dict(c.summary())
     assert rows["Remote"] == "Anywhere in the US" and rows["Posted"] == "Last 3 days"
     assert rows["Hybrid"] == "near Nashville, TN (25 mi); Knoxville, TN (25 mi)"
+
+
+def test_city_lookup_and_distance():
+    assert places.lookup("Nashville, TN") == places.lookup("nashville, tennessee") is not None
+    assert places.lookup("Saint Louis, MO") == places.lookup("St. Louis, MO") is not None
+    assert places.lookup("Ventura, CA") and places.lookup("Louisville, KY") and places.lookup("Washington, DC")
+    assert places.lookup("Nashville") is None and places.lookup("Nowhere, TN") is None
+    knoxville, morristown = places.lookup("Knoxville, TN"), places.lookup("Morristown, TN")
+    assert 39 < places.miles_between(knoxville, morristown) < 41
+
+
+def test_radius_check_skips_remote_jobs_and_unknown_cities():
+    far = adzuna.to_job(ad("1", "Engineer", "Far Co", "Seattle, King County", "Hybrid.", coords=(47.6, -122.3)))
+    near = adzuna.to_job(ad("2", "Engineer", "Near Co", "Nashville, Davidson County", "Hybrid."))
+    query = adzuna.Query("city", "Engineer", "Nashville, TN", 40, 25)
+    assert run.outside_radius(far, query) and not run.outside_radius(near, query)
+    assert not run.outside_radius(far, adzuna.Query("city", "Engineer", "Atlantis, ZZ", 40, 25))
+    remote = adzuna.to_job(ad("3", "Engineer", "Remote Co", "Seattle, King County", "Fully remote.",
+                              coords=(47.6, -122.3)))
+    assert run.keep(remote, query, criteria(), NOW) is None
+
+
+def test_unknown_city_is_reported():
+    c = criteria(cities=[City("Nashvile, TN", 25)])
+    assert any("Couldn't find \"Nashvile, TN\"" in p for p in c.problems())

@@ -28,6 +28,7 @@ class Query:
     title: str
     city: str | None = None
     radius_km: int | None = None
+    radius_miles: int | None = None
 
     @property
     def label(self) -> str:
@@ -42,7 +43,7 @@ def build_queries(criteria: SearchCriteria) -> list[Query]:
     for title in titles:
         if local:
             for city in criteria.cities:
-                queries.append(Query("city", title, city.name, city.radius_km))
+                queries.append(Query("city", title, city.name, city.radius_km, city.radius_miles))
         if "remote" in criteria.settings:
             queries.append(Query("remote", title))
     return queries

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 import config
-from search import adzuna
+from search import adzuna, places
 from search.criteria import SearchCriteria
 from search.normalize import Job, salary_outside
 from storage import jobs as store
@@ -72,7 +72,20 @@ def keep(job: Job, query: adzuna.Query, criteria: SearchCriteria, now: datetime)
             return "not remote and outside your cities"
     elif job.work_setting != "unknown" and job.work_setting not in criteria.settings:
         return "in a work setting you didn't pick"
+    elif job.work_setting != "remote" and outside_radius(job, query):
+        return "outside your cities' radius"
     return None
+
+
+def outside_radius(job: Job, query: adzuna.Query) -> bool:
+    """Adzuna's distance filter is approximate, so check the job's coordinates against the
+    city's. Jobs without coordinates, or cities not in the list, are left to Adzuna's filter."""
+    center = places.lookup(query.city or "")
+    try:
+        spot = (float(job.extra["latitude"]), float(job.extra["longitude"]))
+    except (KeyError, TypeError, ValueError):
+        return False
+    return bool(center and query.radius_miles) and places.miles_between(center, spot) > query.radius_miles
 
 
 def run_searches(searches: list[dict], client=None, now: datetime | None = None) -> RunResult:

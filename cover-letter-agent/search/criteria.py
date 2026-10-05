@@ -2,6 +2,8 @@
 
 from dataclasses import asdict, dataclass, field
 
+from search import places
+
 SETTINGS = ("remote", "hybrid", "onsite")
 SETTING_LABELS = {"remote": "Remote", "hybrid": "Hybrid", "onsite": "On-site", "unknown": "Unknown"}
 DATE_OPTIONS = {1: "Last 24 hours", 3: "Last 3 days", 7: "Last week"}
@@ -46,6 +48,10 @@ class SearchCriteria:
             found.append("Pick at least one work setting.")
         if set(self.settings) & {"hybrid", "onsite"} and not self.cities:
             found.append("Hybrid and on-site jobs need at least one city.")
+        for city in self.cities:
+            if not places.lookup(city.name):
+                found.append(f"Couldn't find \"{city.name}\" in the list of U.S. cities. "
+                             "Type it as city, state, for example Nashville, TN.")
         if self.salary_min and self.salary_max and self.salary_min > self.salary_max:
             found.append("The minimum salary is higher than the maximum.")
         if self.max_days_old not in DATE_OPTIONS:
