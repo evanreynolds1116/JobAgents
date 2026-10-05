@@ -26,16 +26,25 @@ def _check(locator) -> None:
     locator.check(force=True)  # custom-styled radios hide the real input
 
 
+def _options_appear(page, timeout: int) -> bool:
+    try:
+        page.locator('[role="option"]').first.wait_for(state="visible", timeout=timeout)
+        return True
+    except Exception:  # noqa: BLE001 - none appeared
+        return False
+
+
 def _pick_combobox(page, key: str, value: str) -> bool:
-    """Type into a searchable dropdown and click the matching option."""
+    """Type into a searchable dropdown and click the matching option. Search boxes that
+    only list options after Enter (Workday's prompts) get Enter, with submitting blocked."""
     box = _control(page, key)
     guard.safe_click(box)
     box.press_sequentially(value[:40], delay=15)
-    try:
-        page.locator('[role="option"]').first.wait_for(state="visible", timeout=4000)
-    except Exception:  # noqa: BLE001 - no options appeared for what was typed
-        box.press("Escape")
-        return False
+    if not _options_appear(page, 2000):
+        guard.safe_press(box, "Enter")
+        if not _options_appear(page, 3000):
+            box.press("Escape")
+            return False
     options = page.locator('[role="option"]')
     texts = [t.strip() for t in options.all_inner_texts()]
     choice = best_option(value, texts) or (texts[0] if len(texts) == 1 else None)
@@ -69,6 +78,17 @@ def fill_field(page, f: Field, d: Decision, files: dict[str, Path | None]) -> bo
         guard.safe_click(control.nth(f.options.index(values[0])))
     elif f.kind == "combobox":
         return all(_pick_combobox(page, f.key, v) for v in values)
+    elif f.kind == "listbox":
+        guard.safe_click(control)
+        if not _options_appear(page, 3000):
+            return False
+        options = page.locator('[role="option"]')
+        texts = [t.strip() for t in options.all_inner_texts()]
+        choice = best_option(values[0], texts)
+        if choice is None:
+            control.press("Escape")
+            return False
+        guard.safe_click(options.nth(texts.index(choice)))
     else:
         control.fill(values[0])
     return True

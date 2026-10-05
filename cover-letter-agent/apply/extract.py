@@ -11,7 +11,8 @@ from dataclasses import asdict, dataclass, field
 from apply import guard
 
 KINDS = ("text", "email", "tel", "url", "number", "date", "textarea", "select", "combobox", "radio",
-         "checkbox_group", "checkbox", "buttons", "file")  # buttons: a Yes/No toggle-button question
+         "checkbox_group", "checkbox", "buttons", "listbox", "file")
+# buttons: a Yes/No toggle-button question (Ashby). listbox: a button that opens a list (Workday).
 
 
 @dataclass
@@ -30,6 +31,9 @@ class Field:
 
 READ_FIELDS = r"""
 () => {
+  // Single-page apps (Workday) hide earlier pages instead of removing them: clear old keys so
+  // each key points at one control on the page being read.
+  document.querySelectorAll('[data-ja-key]').forEach(e => { e.removeAttribute('data-ja-key'); e.removeAttribute('data-ja-option'); });
   const visible = el => !!(el.offsetParent || el.getClientRects().length) &&
                         getComputedStyle(el).visibility !== 'hidden';
   const clean = t => (t || '').replace(/[*✱]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -65,6 +69,13 @@ READ_FIELDS = r"""
     if (!clean(t) || generic(t)) { const g = groupOf(el); if (g) t = g.getAttribute('aria-labelledby').split(/\s+/).map(textOf).join(' '); }
     if (!clean(t) || generic(t)) t = questionFor(el, el.tagName === 'SELECT' ? [...el.options].map(o => o.text) : []);
     if (!clean(t)) t = el.getAttribute('placeholder') || el.name || el.id || '';
+    // Date parts (Workday's Month / Day / Year boxes) need their group's question in front.
+    if (/^(month|day|year|mm|dd|yyyy)$/i.test(clean(t))) {
+      const g = groupOf(el);
+      const q = g ? g.getAttribute('aria-labelledby').split(/\s+/).map(textOf).join(' ')
+                  : questionFor(el.parentElement || el, ['Month', 'Day', 'Year', 'MM', 'DD', 'YYYY']);
+      if (clean(q)) t = `${clean(q)} (${clean(t)})`;
+    }
     return clean(t);
   };
   const labelElement = el => (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) ||
@@ -98,6 +109,19 @@ READ_FIELDS = r"""
                  value: options[buttons.findIndex(b => b.getAttribute('aria-pressed') === 'true')] || ''});
   }
 
+  // Dropdowns made of a button that opens a listbox (Workday). The options are read later by
+  // opening each one.
+  for (const b of document.querySelectorAll('button[aria-haspopup="listbox"]')) {
+    if (!visible(b) || b.closest('[data-ja-ignore]')) continue;
+    const key = 'f' + (n++);
+    b.setAttribute('data-ja-key', key);
+    const raw = labelElement(b)?.innerText || '';
+    const shown = clean(b.innerText);
+    elementOf[key] = b;
+    fields.push({key, kind: 'listbox', label: labelFor(b), required: isRequired(b, raw), options: [], multiple: false,
+                 value: /^(select( one)?|choose( one)?|--+)$/i.test(shown) ? '' : shown});
+  }
+
   const controls = document.querySelectorAll('input, select, textarea');
   for (const el of controls) {
     if (toggles.some(t => t.contains(el))) continue;
@@ -120,7 +144,8 @@ READ_FIELDS = r"""
     let kind = type || el.tagName.toLowerCase();
     if (el.tagName === 'SELECT') kind = 'select';
     else if (el.tagName === 'TEXTAREA') kind = 'textarea';
-    else if (el.getAttribute('role') === 'combobox') kind = 'combobox';
+    else if (el.getAttribute('role') === 'combobox' || el.getAttribute('data-automation-id') === 'searchBox' ||
+             el.getAttribute('aria-autocomplete') === 'list') kind = 'combobox';
     else if (!['email', 'tel', 'url', 'number', 'date', 'file'].includes(kind)) kind = 'text';
     let value = el.value || '';
     let options = [];
@@ -132,9 +157,10 @@ READ_FIELDS = r"""
       value = el.multiple ? [...el.selectedOptions].map(o => clean(o.text))
                           : (el.value ? clean(el.selectedOptions[0]?.text || '') : '');
     } else if (kind === 'combobox') {
-      const box = el.closest('[class*="control"]') || el.parentElement?.parentElement || el;
-      const chosen = [...box.querySelectorAll('[class*="single-value"], [class*="multi-value__label"]')]
-                     .map(c => clean(c.innerText));
+      const box = el.closest('[class*="control"], [data-automation-id="multiSelectContainer"]') ||
+                  el.parentElement?.parentElement || el;
+      const chosen = [...box.querySelectorAll('[class*="single-value"], [class*="multi-value__label"], ' +
+                                              '[data-automation-id="selectedItem"]')].map(c => clean(c.innerText));
       multiple = !!box.querySelector('[class*="multi-value"]') || /mark all|select all|check all/i.test(label);
       value = multiple ? chosen : (chosen[0] || '');
     } else if (kind === 'file') {
@@ -177,7 +203,7 @@ def read_fields(page, open_dropdowns: bool = True) -> list[Field]:
     fields = [Field(**raw) for raw in page.evaluate(READ_FIELDS)]
     if open_dropdowns:
         for f in fields:
-            if f.kind == "combobox" and not f.options:
+            if f.kind in ("combobox", "listbox") and not f.options:
                 f.options = combobox_options(page, f.key)
     return fields
 

@@ -89,8 +89,10 @@ def _apply_link(links: list[dict], here: str) -> str | None:
     def says_apply(link):
         return re.search(r"\bapply\b|\bapplication\b", link["text"], re.I) or link["href"].rstrip("/").endswith("/apply")
     candidates = [link for link in links if says_apply(link) and link["href"] != here and not blocked_domain(link["href"])]
+    # Workday's "Start Your Application": the agent fills the form itself, so Apply Manually.
+    manual = [link for link in candidates if re.search(r"apply manually", link["text"], re.I)]
     ats = [link for link in candidates if platform_of(link["href"]) != "other"]
-    return (ats or candidates or [{}])[0].get("href")
+    return (manual or ats or candidates or [{}])[0].get("href")
 
 
 def _employer_link(links: list[dict], here: str) -> str | None:
@@ -147,7 +149,8 @@ def resolve(page, url: str, blocked: list[str], max_hops: int = 4) -> Resolution
             return Resolution(False, here, steps=steps,
                               reason="Couldn't find the application form on this page. Open it in the browser "
                                      "and use its address, or add the company's own link.")
-        steps.append("Apply link")
+        manual = any(link["href"] == url and re.search(r"apply manually", link["text"], re.I) for link in info["links"])
+        steps.append("Apply Manually" if manual else "Apply link")
     return Resolution(False, page.url, steps=steps, reason="Couldn't reach an application form in a few steps.")
 
 

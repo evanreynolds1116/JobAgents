@@ -20,8 +20,22 @@ NO_PREVENT = page(  # a typeless button whose page forgot to stop the default: i
     "<label for='e'>Email</label><input id='e' type='email'><label for='p'>Phone</label><input id='p'>"
     "<button id='plain'>Yes</button></form>")
 
+WORKDAY_FORM = "https://acme.wd5.myworkdayjobs.com/en-US/careers/job/Nashville/Software-Engineer_R1/apply/applyManually"
+
 PAGES = {
     ASHBY_FORM: (HERE / "ashby_like.html").read_text(encoding="utf-8"),
+    WORKDAY_FORM: (HERE / "workday_like.html").read_text(encoding="utf-8"),
+    "https://acme.wd5.myworkdayjobs.com/en-US/careers/job/Nashville/Software-Engineer_R1/apply": page(
+        "<h2>Start Your Application</h2>"
+        "<a data-automation-id='autofillWithResume' href='https://acme.wd5.myworkdayjobs.com/en-US/careers/job/"
+        "Nashville/Software-Engineer_R1/apply/autofillWithResume'>Autofill with Resume</a>"
+        f"<a data-automation-id='applyManually' href='{WORKDAY_FORM}'>Apply Manually</a>"
+        "<a data-automation-id='useMyLastApplication' href='https://acme.wd5.myworkdayjobs.com/en-US/careers/job/"
+        "Nashville/Software-Engineer_R1/apply/useMyLastApplication'>Use My Last Application</a>"),
+    "https://acme.wd5.myworkdayjobs.com/en-US/careers/job/Nashville/Software-Engineer_R1": page(
+        "<h2 data-automation-id='jobPostingHeader'>Software Engineer</h2><p>Acme Health, Nashville.</p>"
+        "<a data-automation-id='adventureButton' role='button' href='https://acme.wd5.myworkdayjobs.com/en-US/"
+        "careers/job/Nashville/Software-Engineer_R1/apply'>Apply</a>"),
     "https://careers.acme.example/no-prevent": NO_PREVENT,
     GREENHOUSE_FORM: (HERE / "greenhouse_like.html").read_text(encoding="utf-8"),
     LEVER_FORM: (HERE / "lever_like.html").read_text(encoding="utf-8"),

@@ -193,3 +193,16 @@ def test_detail_offers_fill_without_letter(went):
     at = page("detail", draft)
     click(at, "Fill without cover letter")
     assert went[-1] == ("apply", {"app": draft})
+
+
+def test_multi_page_progress(went, monkeypatch):
+    from ui.apply import progress
+
+    key()
+    app_id = make("Acme", "Engineer")
+    fake = FakeSession(app_id, page=2, pages_done=[1], titles={"1": "My Information", "2": "Application Questions"})
+    monkeypatch.setattr(session, "_current", fake)
+    at = apply_page(app_id)
+    assert any("page 2 · Application Questions" in c.value for c in at.caption)
+    assert "✓ Page 1 · My Information" in text(at) and "**Now:** Page 2 · Application Questions" in text(at)
+    assert progress({"page": 1, "titles": {}, "pages_done": []}) == ""

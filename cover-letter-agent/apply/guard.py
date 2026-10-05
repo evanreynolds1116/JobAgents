@@ -77,6 +77,20 @@ def safe_click(locator) -> None:
             pass
 
 
+def safe_press(locator, key: str) -> None:
+    """A key press with submitting blocked, for search boxes that list options on Enter."""
+    page = locator.page
+    page.evaluate(ARM)
+    try:
+        locator.press(key)
+        page.wait_for_timeout(50)
+    finally:
+        try:
+            page.evaluate(DISARM)
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def is_sensitive(label: str) -> bool:
     """Demographic and EEO questions: never answered by the agent."""
     return bool(SENSITIVE.search(label or ""))

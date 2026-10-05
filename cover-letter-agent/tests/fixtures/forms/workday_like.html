@@ -1,0 +1,113 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Apply - Acme Health careers</title>
+<style>.page{display:none}.page.active{display:block}[role=listbox]{border:1px solid #999;position:absolute;background:#fff}
+[role=option]{padding:4px}.error{color:#b00}</style></head>
+<body>
+<!-- Made-up multi-page application shaped like Workday (myworkdayjobs.com), after sign-in. -->
+<div data-automation-id="progressBar">
+  <span data-automation-id="progressBarStep">My Information</span>
+  <span data-automation-id="progressBarStep">Application Questions</span>
+  <span data-automation-id="progressBarStep">Voluntary Disclosures</span>
+  <span data-automation-id="progressBarStep">Review</span>
+</div>
+<form id="wd" onsubmit="window.__submitted = true; return false;">
+<section class="page active" data-title="My Information">
+  <h2 data-automation-id="pageHeader">My Information</h2>
+  <div data-automation-id="formField-country"><label for="input-1">Country<abbr title="required">*</abbr></label>
+    <button type="button" aria-haspopup="listbox" id="input-1" data-options="United States of America|Canada|Mexico">United States of America</button></div>
+  <div><label for="input-2">Given Name(s)<abbr title="required">*</abbr></label><input id="input-2" type="text" required></div>
+  <div><label for="input-3">Family Name<abbr title="required">*</abbr></label><input id="input-3" type="text" required></div>
+  <div><label for="input-4">Address Line 1<abbr title="required">*</abbr></label><input id="input-4" type="text" required></div>
+  <div><label for="input-5">City<abbr title="required">*</abbr></label><input id="input-5" type="text" required></div>
+  <div><label for="input-6">State<abbr title="required">*</abbr></label>
+    <button type="button" aria-haspopup="listbox" id="input-6" data-options="Tennessee|Texas|Utah">Select One</button></div>
+  <div><label for="input-7">Postal Code<abbr title="required">*</abbr></label><input id="input-7" type="text" required></div>
+  <div><label for="input-8">Email Address<abbr title="required">*</abbr></label><input id="input-8" type="email" required></div>
+  <div><label for="input-9">Phone Device Type<abbr title="required">*</abbr></label>
+    <button type="button" aria-haspopup="listbox" id="input-9" data-options="Mobile|Home|Work">Select One</button></div>
+  <div><label for="input-10">Phone Number<abbr title="required">*</abbr></label><input id="input-10" type="tel" required></div>
+  <div data-automation-id="formField-source"><label for="input-11">How Did You Hear About Us?<abbr title="required">*</abbr></label>
+    <div data-automation-id="multiSelectContainer"><div data-automation-id="selected"></div>
+      <input data-automation-id="searchBox" id="input-11" type="text" placeholder="Search"
+             data-options="Company Website|LinkedIn|Employee Referral|Job Fair"></div></div>
+  <fieldset><legend>Have you previously worked for Acme Health?<abbr title="required">*</abbr></legend>
+    <label><input type="radio" name="worked" value="yes" required> Yes</label>
+    <label><input type="radio" name="worked" value="no" required> No</label></fieldset>
+</section>
+<section class="page" data-title="Application Questions">
+  <h2 data-automation-id="pageHeader">Application Questions</h2>
+  <div><label for="input-20">Are you legally authorized to work in the United States?<abbr title="required">*</abbr></label>
+    <button type="button" aria-haspopup="listbox" id="input-20" data-options="Yes|No">Select One</button></div>
+  <div><label for="input-21">Will you now or in the future require sponsorship for employment visa status?<abbr title="required">*</abbr></label>
+    <button type="button" aria-haspopup="listbox" id="input-21" data-options="Yes|No">Select One</button></div>
+  <div role="group" aria-labelledby="date-label"><span id="date-label">Date available to start</span>
+    <input role="spinbutton" aria-label="Month" id="input-22" type="text" placeholder="MM">
+    <input role="spinbutton" aria-label="Day" id="input-23" type="text" placeholder="DD">
+    <input role="spinbutton" aria-label="Year" id="input-24" type="text" placeholder="YYYY"></div>
+  <div><label for="input-25">Why are you interested in this role at Acme Health?<abbr title="required">*</abbr></label>
+    <textarea id="input-25" required></textarea></div>
+</section>
+<section class="page" data-title="Voluntary Disclosures">
+  <h2 data-automation-id="pageHeader">Voluntary Disclosures</h2>
+  <div><label for="input-30">Gender</label>
+    <button type="button" aria-haspopup="listbox" id="input-30" data-options="Male|Female|I do not wish to answer">Select One</button></div>
+  <div><label for="input-31">Veteran Status</label>
+    <button type="button" aria-haspopup="listbox" id="input-31" data-options="I am a veteran|I am not a veteran|I do not wish to answer">Select One</button></div>
+  <div><label><input type="checkbox" id="input-32"> I acknowledge that I have read and agree to the terms and conditions.</label></div>
+</section>
+<section class="page" data-title="Review">
+  <h2 data-automation-id="pageHeader">Review</h2>
+  <p>Check your application, then submit it.</p>
+  <button type="submit" data-automation-id="pageFooterSubmitButton">Submit</button>
+</section>
+<div data-automation-id="errorBanner" role="alert" class="error"></div>
+<button type="button" data-automation-id="pageFooterBackButton" id="back">Back</button>
+<button type="button" data-automation-id="pageFooterNextButton" id="next">Save and Continue</button>
+</form>
+<script>
+const pages = [...document.querySelectorAll('.page')];
+const show = i => { pages.forEach((p, j) => p.classList.toggle('active', i === j));
+  document.getElementById('next').style.display = i === pages.length - 1 ? 'none' : '';
+  window.__page = i; };
+show(0);
+// Dropdowns: a button that opens a listbox of options.
+document.querySelectorAll('button[aria-haspopup=listbox]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('[role=listbox]').forEach(l => l.remove());
+    const list = document.createElement('ul'); list.setAttribute('role', 'listbox');
+    b.dataset.options.split('|').forEach(o => { const li = document.createElement('li'); li.setAttribute('role', 'option'); li.textContent = o;
+      li.addEventListener('click', () => { b.textContent = o; list.remove(); }); list.appendChild(li); });
+    b.after(list);
+  });
+  b.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('[role=listbox]').forEach(l => l.remove()); });
+});
+// Search prompt: options appear after typing and pressing Enter.
+const search = document.getElementById('input-11');
+search.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { document.querySelectorAll('[role=listbox]').forEach(l => l.remove()); return; }
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  document.querySelectorAll('[role=listbox]').forEach(l => l.remove());
+  const list = document.createElement('div'); list.setAttribute('role', 'listbox');
+  search.dataset.options.split('|').filter(o => o.toLowerCase().includes(search.value.toLowerCase())).forEach(o => {
+    const d = document.createElement('div'); d.setAttribute('role', 'option'); d.setAttribute('data-automation-id', 'promptOption'); d.textContent = o;
+    d.addEventListener('click', () => { const s = document.createElement('span'); s.setAttribute('data-automation-id', 'selectedItem'); s.textContent = o;
+      document.querySelector('[data-automation-id=selected]').appendChild(s); search.value = ''; list.remove(); });
+    list.appendChild(d); });
+  search.after(list);
+});
+// Save and Continue checks required fields on this page, like Workday does.
+document.getElementById('next').addEventListener('click', () => {
+  const page = pages[window.__page];
+  const missing = [...page.querySelectorAll('[required]')].filter(el => el.type === 'radio'
+      ? !page.querySelector(`input[name="${el.name}"]:checked`) : !el.value);
+  const unpicked = [...page.querySelectorAll('button[aria-haspopup=listbox]')].filter(b => b.textContent === 'Select One' &&
+      /\*/.test(document.querySelector(`label[for="${b.id}"]`).textContent));
+  const banner = document.querySelector('[data-automation-id=errorBanner]');
+  if (missing.length || unpicked.length) { banner.textContent = `Errors found: ${missing.length + unpicked.length} required fields are empty.`; return; }
+  banner.textContent = '';
+  show(window.__page + 1);
+});
+document.getElementById('back').addEventListener('click', () => show(Math.max(0, window.__page - 1)));
+</script>
+</body></html>

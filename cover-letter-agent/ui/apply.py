@@ -42,6 +42,18 @@ def summary(rows: list[dict]) -> str:
     return " · ".join(parts)
 
 
+def progress(snap: dict) -> str:
+    """'✓ Page 1 · My Information' lines for a multi-page form, then where it is now."""
+    lines = []
+    for number, title in sorted(snap.get("titles", {}).items(), key=lambda kv: int(kv[0])):
+        name = f"Page {number}" + (f" · {title}" if title else "")
+        if int(number) in snap.get("pages_done", []):
+            lines.append(f"- ✓ {escape(name)}")
+        elif int(number) == snap["page"]:
+            lines.append(f"- **Now:** {escape(name)}")
+    return "\n".join(lines)
+
+
 def apply_page() -> None:
     app_id = _app_id()
     app = db.get_application(app_id) if app_id else None
@@ -125,7 +137,9 @@ def _live(app_id: int) -> None:
     snap = current.snapshot()
     state = snap["state"]
     platform = f" · {snap['platform']} form" if snap["platform"] else ""
-    st.caption(f"{db.get_application(app_id).get('title') or ''}{platform} · page {snap['page']}")
+    title = snap.get("titles", {}).get(str(snap["page"]), "")
+    st.caption(f"{db.get_application(app_id).get('title') or ''}{platform} · page {snap['page']}"
+               + (f" · {title}" if title else ""))
 
     with st.container(horizontal=True, key="ap_actions"):
         if state == "confirm" and st.button("Confirm form", type="primary", key="ap_confirm"):
@@ -152,6 +166,9 @@ def _live(app_id: int) -> None:
     if state == "blocked":
         _other_link(app_id, current)
     _offers(snap.get("offers", []))
+
+    if len(snap.get("titles", {})) > 1 or snap.get("pages_done"):
+        st.markdown(progress(snap))
 
     if snap["steps"]:
         with st.container(border=True, key="ap_route"):

@@ -22,7 +22,7 @@ SOURCES = ["profile", "application_answers", "saved_answer", "resume", "cover_le
 ACTIONS = ["fill", "upload_resume", "upload_cover_letter", "leave"]
 LETTER_PLACEHOLDER = "[approved cover letter]"
 SALARY = re.compile(r"\b(salary|compensation|pay (range|expectation)|expected pay|desired pay|rate)\b", re.I)
-CHOICE_KINDS = ("select", "radio", "checkbox_group", "buttons")
+CHOICE_KINDS = ("select", "radio", "checkbox_group", "buttons", "listbox")
 
 SCHEMA = {
     "type": "object",

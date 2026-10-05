@@ -15,8 +15,8 @@ Status values: `Not started` · `In progress` · `Blocked` · `Done`
 
 ## Current status
 
-- **Current milestone:** 7 and 8 built; their live checks on real postings need you. 11 is waiting on your labels, 5 on your scores
-- **Next step:** Fill in your application answers on Profile & resume, then run the live checks: 5 Greenhouse or Lever postings (Milestone 7) and 5 from other platforms such as Ashby (Milestone 8); see Blockers. Separately, label the Milestone 11 sheet and score the Milestone 5 evaluation
+- **Current milestone:** Every milestone is built. Live checks for 7, 8 and 9 need you; 11 is waiting on your labels, 5 on your scores
+- **Next step:** Fill in your application answers on Profile & resume, then run the live checks: 5 Greenhouse or Lever postings (Milestone 7), 5 from other platforms (Milestone 8) and one Workday application (Milestone 9); see Blockers. Separately, label the Milestone 11 sheet and score the Milestone 5 evaluation
 - **Last updated:** 2026-10-05
 
 ## Build order
@@ -36,7 +36,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 6 | Application profile | 2. Application | Done (2026-10-05) |
 | 7 | Greenhouse and Lever filler | 2. Application | In progress (built and tested; live check on 5 real postings pending) |
 | 8 | General forms and answer learning | 2. Application | In progress (built and tested; live check on 5 postings pending) |
-| 9 | Multi-step platforms (stretch) | 2. Application | Not started |
+| 9 | Multi-step platforms (stretch) | 2. Application | In progress (built and tested; live Workday check pending) |
 
 ## Acceptance criteria
 
@@ -104,7 +104,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Fill without cover letter works, and pauses when a form requires a cover letter (from the shortlist's More menu, a pasted link on New cover letter, or any application without an approved letter; tested end to end on an Ashby-shaped form that requires a letter: pause, Draft a cover letter or Fill without it)
 
 **Milestone 9. Multi-step platforms (stretch)**
-- [ ] A full Workday application reaches the final review page, with the user handling the login
+- [ ] A full Workday application reaches the final review page, with the user handling the login (tested end to end on a made-up 4-page Workday-shaped application; a real Workday job page was checked read-only: the Apply link and the Start Your Application choices; the form pages need your account)
 
 ## Decisions & deviations
 
@@ -188,6 +188,9 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 | 2026-10-05 | Toggle-button questions (two or more `aria-pressed` buttons, Ashby's Yes/No) are read as a "buttons" field and answered by clicking the option; Ashby's "Autofill from resume" upload is left alone; fields are listed in page order | Ashby's form structure, read from a real OnePay form | n/a |
 | 2026-10-05 | Screening answers: open questions the mapping left blank (ending in ? or starting why/what/how/describe/tell us/share/explain; not contact details, salary, sensitive or attestation questions) are drafted in one Claude call per page (`agent/prompts/screening.md`, effort `medium`) from the resume, profile, notes, saved posting, approved letter and writing samples, with the banned-phrase list; linter hits are noted, and every draft is marked for review and outlined. A question the sources can't honestly answer stays blank. No separate claim check | Spec: drafted with the same style rules, then highlighted for review; the claim check would add a call per page for a few short answers you review anyway | Pending |
 | 2026-10-05 | Answer learning: when the final values are saved, any answer you typed (or that differs from the agent's) to a real question, not contact details, files, salary, sensitive or attestation fields, is offered with Save answer / Not now; saved answers go to `saved_answers` and are reused by the mapping. Each saved answer the agent reuses has its times-used count increased | Spec: offer to save answers you type | n/a |
+| 2026-10-05 | Multi-step forms: after you click Continue, the agent saves the page, clicks the page's Next / Continue / Save and Continue button (never one that submits) and waits for the next page, a new address or a single-page app swapping its content. If the form stays put (errors), it pauses on the same page and shows the error text. A page with nothing to fill and no Next pauses with "open the application form, then Resume" (Workday's sign-in and Start Your Application). A page with nothing to fill, no Next and a Submit button is the final review page: the agent hands over there. Page titles and progress show on the Fill application screen | Spec: Milestone 9, page by page to the final review page | n/a |
+| 2026-10-05 | Workday controls: buttons with `aria-haspopup="listbox"` are read as dropdowns (options read by opening them) and answered by clicking the option; search prompts (`data-automation-id="searchBox"`) are typed into, and if no options appear, Enter is pressed with the submit block armed; date parts (Month / Day / Year) are labeled with their group's question. On Workday's Start Your Application, the agent opens Apply Manually rather than Workday's own resume autofill | Workday's structure from a public job page and Workday's known `data-automation-id` names; the application pages need an account, so the controls are tested on a made-up form | n/a |
+| 2026-10-05 | Each page read clears the previous page's field keys, because single-page apps keep earlier pages hidden in the page and a key could match two controls | Found when page 2 of the Workday-shaped form wouldn't fill | n/a |
 | 2026-10-01 | Find jobs screen per the mockup, minus the Fit column (Milestone 11) and Start letter (Milestone 12). Job titles link to the posting; Save / Dismiss / Move to New change the job's status | Milestone 10 scope | n/a |
 | 2026-10-01 | Upload limit 10 MB; `fpdf2` is used only to regenerate the PDF test fixtures and isn't in `requirements.txt` | Resumes are small; avoid a runtime dependency | n/a |
 
@@ -195,6 +198,7 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 
 - [ ] Milestone 7 live check: fill in your application answers, then choose 5 real Greenhouse or Lever postings you'd consider applying to. Each needs an application with an approved letter (about $0.10 per letter, a few cents per form mapping). The agent then fills each form in a visible Chrome window with your real details, never submitting; you watch, and we count fields filled correctly (target 90% of non-sensitive fields)
 - [ ] Milestone 8 live check: 5 postings from other platforms (Ashby, SmartRecruiters, Workable or company forms), with Fill without cover letter on at least one; target: every required field filled or clearly flagged
+- [ ] Milestone 9 live check: one Workday posting you'd consider; you sign in or create the account and choose Apply Manually when asked, then the agent fills page by page to the review page and stops
 - [ ] Approve or change the Adzuna-link decision: Adzuna blocks the app's browser (HTTP 403), so for Adzuna jobs you paste the company's link on the Fill application screen
 
 - [x] Watch-list dates: the date rule is skipped for watch-list jobs (user's choice, 2026-10-05)
@@ -226,6 +230,12 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-05 (Milestone 9, build)
+- Looked at a public Workday job page read-only (NVIDIA): Apply is an `adventureButton` link to `/apply`, which shows Start Your Application (Autofill with Resume, Apply Manually, Use My Last Application) before sign-in; the page keeps polling, so it never goes network-idle.
+- Built Workday support: list-opening dropdowns, search prompts with a guarded Enter, date-part labels, Apply Manually preferred, page-by-page navigation with "didn't move on" detection, the nothing-to-fill pause, final review page detection, page titles and progress on the screen, and a guarded key press (`guard.safe_press`).
+- Found while testing: on Continue the screen kept showing "review" until the next page arrived (now shows working right away); page 2 of a single-page app wouldn't fill because hidden page-1 controls kept their keys (keys now cleared on each read).
+- Tests: 407 passed, 1 skipped. New: `test_apply_m9.py` (Workday job to Apply Manually, reading and filling list-opening dropdowns and the search prompt without submitting or moving on, a whole 4-page application to the review page with each page saved and demographic fields left, a form that stays put on errors) and a progress screen test.
 
 ### 2026-10-05 (Milestone 8, build)
 - Read a real Ashby form (OnePay) read-only: Yes/No questions are `aria-pressed` buttons over a hidden checkbox; added the "buttons" field kind, required detection from the label's class, page order, and the second Submit safety net.
