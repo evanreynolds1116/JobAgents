@@ -20,7 +20,7 @@ STATUS = {"filled": "Filled", "review": "Review", "needs_you": "Needs you", "lef
           "you": "Your edit"}
 SOURCE = {"profile": "Your profile", "application_answers": "Application answers", "saved_answer": "Saved answer",
           "resume": "Your resume", "cover_letter": "Approved letter", "drafted": "Drafted for you", "none": "",
-          "you": "You"}
+          "you": "You", "self_id": "Self-identification"}
 
 
 def _app_id() -> int | None:

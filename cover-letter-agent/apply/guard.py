@@ -4,7 +4,9 @@ What it answers, drafts or leaves for you).
 1. The agent never clicks a button that submits or applies. Every click the agent makes goes
    through `safe_click`, which refuses submit-type buttons and anything labeled Submit,
    Apply, Send application and the like. You click Submit yourself.
-2. Demographic and EEO questions, legal attestations and consent boxes are never answered.
+2. Legal attestations and consent boxes are never answered. Demographic and EEO questions
+   are never sent to Claude; they're answered only from your self-identification answers,
+   by code (apply/self_id.py), and left for you otherwise.
 """
 
 import re
@@ -14,7 +16,7 @@ SUBMIT_WORDS = re.compile(
     r"|\bsend application\b|\bi agree\b|\baccept\b", re.I)
 
 SENSITIVE = re.compile(
-    r"\b(race|racial|ethnic\w*|hispanic|latin[oax]|gender|sex|sexual orientation|lgbt\w*|pronoun\w*|"
+    r"\b(race|racial|ethnic\w*|hispanic|latin[oax]|gender|sex|sexual orientation|sexuality|lgbt\w*|pronoun\w*|"
     r"transgender|veteran|armed forces|military status|disabilit\w*|self[- ]identif\w*|voluntary|eeo\w*|"
     r"equal employment|date of birth|birth ?date|age range|marital|religio\w*|national origin|citizenship status)\b",
     re.I)
@@ -92,7 +94,7 @@ def safe_press(locator, key: str) -> None:
 
 
 def is_sensitive(label: str) -> bool:
-    """Demographic and EEO questions: never answered by the agent."""
+    """Demographic and EEO questions: never sent to Claude."""
     return bool(SENSITIVE.search(label or ""))
 
 

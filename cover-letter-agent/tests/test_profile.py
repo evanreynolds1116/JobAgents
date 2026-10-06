@@ -256,6 +256,26 @@ def test_application_answers_persist_and_can_be_edited(app_paths):
     assert edited.relocation == "No" and edited.salary == "" and edited.city == "Nashville"
 
 
+def test_self_identification_persists(app_paths):
+    from storage import self_id
+
+    at = open_profile()
+    assert "Self-identification (optional)" in [s.value for s in at.subheader]
+    assert at.selectbox(key="pf_sid_gender").value == ""  # shown as "Not set"
+    at.selectbox(key="pf_sid_gender").set_value("Woman")
+    at.selectbox(key="pf_sid_veteran").set_value("Not a veteran")
+    at.selectbox(key="pf_sid_disability").set_value(self_id.DECLINE)
+    at.text_input(key="pf_sid_pronouns").input("she/her")
+    at.run()
+    assert any(c.value == "You have unsaved changes." for c in at.caption)
+    click(at, "Save changes")
+    assert self_id.load() == self_id.SelfId(gender="Woman", veteran="Not a veteran", disability=self_id.DECLINE,
+                                            pronouns="she/her")
+    at = open_profile()
+    assert at.selectbox(key="pf_sid_veteran").value == "Not a veteran"
+    assert not any(c.value == "You have unsaved changes." for c in at.caption)
+
+
 def test_application_answer_warnings(app_paths):
     at = open_profile()
     at.selectbox(key="pf_app_work_authorized").set_value("No")

@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS filled_answers (  -- what ended up in each applicatio
     page            INTEGER NOT NULL DEFAULT 1,
     field_label     TEXT NOT NULL,
     value           TEXT,                -- the final value, including your edits; JSON list for multi-choice
-    source          TEXT,                -- profile, application_answers, saved_answer, resume, cover_letter, you
+    source          TEXT,                -- profile, application_answers, saved_answer, resume, cover_letter, self_id, you
     status          TEXT,                -- filled, review, needs_you, left_for_you
     filled_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime'))
 );

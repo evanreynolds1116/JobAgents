@@ -13,9 +13,11 @@ from storage import application_profile as app_store
 from storage import jobs as job_store
 from storage import profile as profile_store
 from storage import resume
+from storage import self_id as self_id_store
 from ui.style import muted
 
 APP_FIELDS = tuple(f.name for f in fields(app_store.ApplicationProfile))
+SELF_ID_FIELDS = tuple(f.name for f in fields(self_id_store.SelfId))
 NOT_SET = "Not set"
 
 
@@ -26,8 +28,8 @@ def _choice(label: str, field: str, options: tuple[str, ...], column, help: str 
 def _application_answers() -> None:
     with st.container(border=True, key="card_app_answers"):
         st.subheader("Application answers", anchor=False)
-        st.caption("The application agent fills these in. It never answers demographic questions or legal "
-                   "attestations. Anything left blank or Not set is left for you to answer on the form.")
+        st.caption("The application agent fills these in. It never answers legal attestations. Anything left "
+                   "blank or Not set is left for you to answer on the form.")
         a, b = st.columns(2)
         _choice("Authorized to work in the US", "work_authorized", app_store.YES_NO, a)
         _choice("Need visa sponsorship", "needs_sponsorship", app_store.YES_NO, b,
@@ -46,6 +48,30 @@ def _application_answers() -> None:
         state.text_input("State", key="pf_app_state", placeholder="TN")
         postal.text_input("ZIP code", key="pf_app_postal_code", placeholder="37203")
         st.text_input("Country", key="pf_app_country")
+
+
+def _self_identification() -> None:
+    with st.container(border=True, key="card_self_id"):
+        st.subheader("Self-identification (optional)", anchor=False)
+        st.caption("For the voluntary demographic and EEO questions many forms ask. Stored only on this computer "
+                   "and never sent to Claude: the agent picks the matching option with plain code. Anything Not "
+                   "set, or an answer that doesn't match one of a form's options, is left for you.")
+        a, b = st.columns(2)
+        a.selectbox("Gender", self_id_store.GENDER, key="pf_sid_gender", format_func=lambda o: o or NOT_SET)
+        b.selectbox("Transgender", self_id_store.YES_NO, key="pf_sid_transgender", format_func=lambda o: o or NOT_SET)
+        a, b = st.columns(2)
+        a.selectbox("Sexual orientation", self_id_store.ORIENTATION, key="pf_sid_sexual_orientation",
+                    format_func=lambda o: o or NOT_SET)
+        b.text_input("Pronouns", key="pf_sid_pronouns", placeholder="she/her")
+        a, b = st.columns(2)
+        a.selectbox("Race", self_id_store.RACE, key="pf_sid_race", format_func=lambda o: o or NOT_SET)
+        b.selectbox("Hispanic or Latino", self_id_store.YES_NO, key="pf_sid_hispanic_latino",
+                    format_func=lambda o: o or NOT_SET, help="Many forms ask this separately from race.")
+        a, b = st.columns(2)
+        a.selectbox("Veteran status", self_id_store.VETERAN, key="pf_sid_veteran", format_func=lambda o: o or NOT_SET,
+                    help="Protected veterans are defined by VEVRAA; most forms explain the categories.")
+        b.selectbox("Disability", self_id_store.YES_NO, key="pf_sid_disability", format_func=lambda o: o or NOT_SET,
+                    help="Yes if you have, or have had, a disability, as the standard form asks it.")
 
 
 def _save_answer(answer_id: int | None) -> None:
@@ -149,10 +175,17 @@ def _load_profile_state() -> None:
     saved_app = app_store.load()
     for name in APP_FIELDS:
         st.session_state[f"pf_app_{name}"] = getattr(saved_app, name)
+    saved_sid = self_id_store.load()
+    for name in SELF_ID_FIELDS:
+        st.session_state[f"pf_sid_{name}"] = getattr(saved_sid, name)
 
 
 def _app_from_state() -> app_store.ApplicationProfile:
     return app_store.ApplicationProfile(**{n: st.session_state.get(f"pf_app_{n}", "") for n in APP_FIELDS})
+
+
+def _self_id_from_state() -> self_id_store.SelfId:
+    return self_id_store.SelfId(**{n: st.session_state.get(f"pf_sid_{n}", "") for n in SELF_ID_FIELDS})
 
 
 def _profile_from_state() -> profile_store.Profile:
@@ -164,7 +197,8 @@ def _profile_from_state() -> profile_store.Profile:
 
 
 def _has_unsaved_changes() -> bool:
-    if _profile_from_state() != profile_store.load() or _app_from_state() != app_store.load():
+    if (_profile_from_state() != profile_store.load() or _app_from_state() != app_store.load()
+            or _self_id_from_state() != self_id_store.load()):
         return True
     return st.session_state.get("pf_resume_text", "").strip() != resume.load_text().strip()
 
@@ -176,6 +210,7 @@ def _save_profile() -> None:
     resume.save_text(st.session_state.get("pf_resume_text", ""))
     answers = _app_from_state()
     app_store.save(answers)
+    self_id_store.save(_self_id_from_state())
     st.session_state.pf_flash = ("success", "Saved.")
     st.session_state.pf_problems = current.problems() + answers.problems()
 
@@ -334,6 +369,7 @@ def profile_page() -> None:
             )
 
         _application_answers()
+        _self_identification()
         _saved_answers()
         _watch_list()
 

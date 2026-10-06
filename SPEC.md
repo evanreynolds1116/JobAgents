@@ -170,6 +170,7 @@ Everything lives in the local `data/` folder. Nothing is stored online except wh
 | Draft versions | `data/app.db`, table `drafts` | SQLite | `id`, `application_id`, `version`, `text`, `verify_json`, `feedback` (what you asked to change), `resume_hash`, `created_at` |
 | Exported letters | `output/` | .docx and .pdf | Named `Company - Title - Cover Letter.docx` |
 | Application profile (Phase 2) | `data/application_profile.yaml` | YAML | Address, work authorization, sponsorship, relocation, start date, salary preference (optional), how you usually heard about jobs |
+| Self-identification (Phase 2, optional) | `data/self_id.yaml` | YAML | Gender, transgender, sexual orientation, pronouns, race, Hispanic or Latino, veteran status, disability. Never sent to Claude |
 | Saved answers (Phase 2) | `data/app.db`, table `saved_answers` | SQLite | Question text, your approved answer, times used; offered for reuse on similar questions |
 | Browser profile (Phase 2) | `data/browser_profile/` | Chrome profile folder | Keeps your job-site logins between runs; gitignored |
 | Filled answers (Phase 2) | `data/app.db`, table `filled_answers` | SQLite | Application, page, field label, final value (including your edits), source, time filled; shown on the application's detail page |
@@ -305,7 +306,7 @@ Many links don't point straight at the employer's form, so the agent resolves th
 | Short free-text screening questions | Drafted with the same pipeline and style rules as the cover letter, then highlighted for your review |
 | Salary expectations | Filled only if you saved a preferred answer; otherwise left blank for you |
 | Legal attestations and "I certify" checkboxes | Never checked by the agent; left for you |
-| Demographic and EEO questions (race, gender, veteran, disability) | Never answered by the agent; left for you |
+| Demographic and EEO questions (race, gender, veteran, disability) | Never sent to Claude. Answered only from your optional self-identification answers, matched to the form's options by code; left for you if not set or no single option matches (changed at your request, 2026-10-05) |
 | Anything it can't confidently map | Left blank and highlighted |
 
 When you type an answer the agent didn't have, it offers to save it to your application profile, so later applications need fewer edits.
@@ -349,7 +350,7 @@ When you type an answer the agent didn't have, it offers to save it to your appl
 - Saved HTML copies of Greenhouse, Lever and Workday forms as fixtures for field extraction and mapping tests.
 - A test page with a Submit button confirms the block works.
 - A test page containing hidden "instructions" confirms the agent ignores them.
-- Demographic and attestation fields on fixtures stay untouched.
+- Attestation fields on fixtures stay untouched. Demographic fields stay untouched unless you saved a self-identification answer, and are never sent to Claude.
 - Link resolution: fixtures for an Adzuna redirect, a company posting page with an Apply button, and a LinkedIn posting confirm the agent reaches the employer's form, or stops and asks for the company's link.
 - A form that requires a cover letter, started with Fill without cover letter, makes the agent pause and offer to draft one.
 

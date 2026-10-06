@@ -1,19 +1,30 @@
 # JobAgents
 
-Planning documents for a personal, local job application assistant with three agents: job search, cover letter, and application filling. You stay in control at every handoff, and nothing is ever submitted without you.
+A personal job application assistant that runs on your own computer. It has three agents that use the Claude API: one finds jobs, one drafts cover letters and one fills application forms. You stay in control at every handoff, and nothing is ever submitted without you.
 
-| File | What it is |
+| Path | What it is |
 | --- | --- |
+| `cover-letter-agent/` | The app (Streamlit). Its README covers install, running, deployment, backups and tests |
 | `SPEC.md` | The full build spec: goals, architecture, agent design, data, guardrails, testing and milestones for all three phases |
-| `PROGRESS.md` | Build tracker: milestones in build order, acceptance checklists, decisions and a session log. Claude reads and updates it every session |
-| `ui-mockup/` | The screen designs to match, with notes on each screen and the design tokens |
+| `PROGRESS.md` | Build tracker: milestones, acceptance checklists, decisions and a session log |
+| `ui-mockup/` | The screen designs the app follows, with notes on each screen and the design tokens |
 
-## Starting the build with Claude Code
+## Quick start (Windows)
 
-Open this folder in Claude Code and send:
+You need Python 3.12, Git, Google Chrome and a Claude API key. Free Adzuna keys are needed for job search only.
 
-> Read SPEC.md, PROGRESS.md and ui-mockup/README.md. Then build Milestone 1 only, and update PROGRESS.md when you're done. Ask me before deviating from the spec.
+```
+git clone https://github.com/evanreynolds1116/JobAgents.git
+cd JobAgents\cover-letter-agent
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+copy .env.example .env
+```
 
-Build order: milestones 1–5 (cover letter agent), then 10–12 (job search), then 6–9 (application agent).
+Put your keys in `.env`, then double-click `run.bat`. The app opens at http://localhost:8501.
 
-Before you start, you'll need an Anthropic API key (from milestone 1) and a free Adzuna API key (from milestone 10).
+To start it automatically when you sign in, update it, back it up or move it to another computer, see **Deploy** in [`cover-letter-agent/README.md`](cover-letter-agent/README.md#deploy). The app is local only by design: it has no login, it listens on localhost and it drives Chrome on the same machine.
+
+## Status
+
+All milestones are built. A few live checks with real postings and your own labels are still open. See `PROGRESS.md`.

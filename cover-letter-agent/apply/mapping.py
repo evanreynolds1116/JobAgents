@@ -2,21 +2,24 @@
 or leaves for you).
 
 Claude proposes an answer and a source for every field; code then applies the rules that
-don't depend on the model: demographic, EEO, attestation and consent questions are always
-left; a choice must be one of the field's real options; salary is filled only from a saved
-salary answer; and an answer that can't be found in its source is marked for your review.
+don't depend on the model: attestation and consent questions are always left; demographic
+and EEO questions are never sent to Claude and are answered only from your
+self-identification answers, by code; a choice must be one of the field's real options;
+salary is filled only from a saved salary answer; and an answer that can't be found in its
+source is marked for your review.
 """
 
 import json
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from difflib import SequenceMatcher
 
 from agent import pipeline
-from apply import guard
+from apply import guard, self_id
 from apply.extract import Field
 from storage import application_profile as app_store
 from storage import profile as profile_store
+from storage import self_id as self_id_store
 
 SOURCES = ["profile", "application_answers", "saved_answer", "resume", "cover_letter", "none"]
 ACTIONS = ["fill", "upload_resume", "upload_cover_letter", "leave"]
@@ -72,6 +75,7 @@ class Sources:
     resume_text: str
     letter_text: str = ""       # the approved letter, if there is one
     has_resume_file: bool = True
+    self_id: self_id_store.SelfId = field(default_factory=self_id_store.SelfId)  # never sent to Claude
 
     def blocks(self) -> dict[str, str]:
         p, a = self.profile, self.answers
@@ -149,10 +153,13 @@ def leave(key: str, note: str, status: str = "needs_you") -> Decision:
 
 def decide(f: Field, proposal: dict | None, sources: Sources) -> Decision:
     """Claude's proposal for one field, checked against the rules."""
-    if guard.is_sensitive(f.label):
-        return leave(f.key, "The agent never answers these", "left_for_you")
     if guard.is_attestation(f.label):
         return leave(f.key, "Legal attestations and consent are left for you", "left_for_you")
+    if guard.is_sensitive(f.label):
+        value, note = self_id.answer(f, sources.self_id)
+        if value is None:
+            return leave(f.key, note, "left_for_you")
+        return Decision(f.key, "fill", value, "self_id", True)
     if f.kind == "file" and re.search(r"autofill|auto-fill|parse", f.label, re.I):
         return leave(f.key, "Not used: the agent fills the form itself", "left_for_you")
     if f.kind == "file":

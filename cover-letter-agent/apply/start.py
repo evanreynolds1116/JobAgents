@@ -15,6 +15,7 @@ from storage import answers as answer_store
 from storage import application_profile as app_store
 from storage import db, resume
 from storage import profile as profile_store
+from storage import self_id as self_id_store
 
 
 class StartProblem(Exception):
@@ -59,7 +60,7 @@ def make_steps(app: dict):
     sources = mapping.Sources(
         profile=profile, answers=app_store.load(), saved_answers=answer_store.list_answers(),
         resume_text=resume.load_text(), letter_text=letter_text(app),
-        has_resume_file=resume.original_file() is not None)
+        has_resume_file=resume.original_file() is not None, self_id=self_id_store.load())
 
     def mapper(fields):
         return mapping.map_fields(client, settings.model, fields, sources)
