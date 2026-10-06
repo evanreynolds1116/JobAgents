@@ -144,3 +144,78 @@ def test_endless_redirects_give_up():
 ])
 def test_company_from_url(url, company):
     assert fetch.company_from_url(url) == company
+
+
+# --- Greenhouse careers pages ------------------------------------------------------
+
+SHELL = "<html><body><nav>Log in</nav><div id='app'></div></body></html>"
+GREENHOUSE_JOB = {
+    "title": "Software Engineer, Core Platform", "company_name": "Acme",
+    "absolute_url": "https://acme.io/job-detail/?gh_jid=6143413004",
+    "location": {"name": "Remote - United States"},
+    # The API sends the description HTML-escaped.
+    "content": "&lt;p&gt;You'll build the platform our customers run on.&lt;/p&gt;&lt;ul&gt;"
+               + "".join(f"&lt;li&gt;Requirement {i}: years of distributed systems work&lt;/li&gt;" for i in range(12))
+               + "&lt;/ul&gt;",
+}
+
+
+def greenhouse_client(job=GREENHOUSE_JOB, page=SHELL):
+    requested = []
+
+    def handler(request):
+        requested.append(str(request.url))
+        if request.url.host == "boards-api.greenhouse.io":
+            if request.url.path == "/v1/boards/acme/jobs/6143413004" and job is not None:
+                return httpx.Response(200, json=job)
+            return httpx.Response(404, json={"status": 404})
+        return httpx.Response(200, html=page)
+
+    return client_for(handler), requested
+
+
+@pytest.mark.parametrize("url, found", [
+    ("https://cribl.io/job-detail/6143413004", (["cribl"], "6143413004")),
+    ("https://www.acme.com/careers/?gh_jid=123", (["acme"], "123")),
+    ("https://careers.acme-health.com/jobs/4567890", (["acmehealth", "acme-health"], "4567890")),
+    ("https://job-boards.greenhouse.io/acme/jobs/6143413004", (["acme"], "6143413004")),
+    ("https://boards.greenhouse.io/embed/job_app?for=acme&token=55", (["acme"], "55")),
+    ("https://careers.acme.com/jobs/123", None),          # a short number isn't taken for a job ID
+    ("https://careers.acme.com/jobs/engineer", None),
+    ("https://www.adzuna.com/details/6143413004", None),  # listing sites say nothing about the employer
+])
+def test_greenhouse_job_from_link(url, found):
+    assert fetch.greenhouse_job(url) == found
+
+
+def test_javascript_careers_page_is_read_from_greenhouse():
+    client, requested = greenhouse_client()
+    result = fetch.fetch("https://acme.io/job-detail/6143413004", client=client)
+    assert result.ok
+    assert result.hints == {"title": "Software Engineer, Core Platform", "company": "Acme"}
+    assert result.text.startswith("Job title: Software Engineer, Core Platform\nCompany: Acme\n"
+                                  "Location: Remote - United States\n\nYou'll build the platform")
+    assert "- Requirement 11: years of distributed systems work" in result.text
+    assert "&lt;" not in result.text and "<li>" not in result.text
+    assert requested == ["https://acme.io/job-detail/6143413004",
+                         "https://boards-api.greenhouse.io/v1/boards/acme/jobs/6143413004"]
+
+
+def test_greenhouse_job_for_a_different_site_is_not_used():
+    client, _ = greenhouse_client(job={**GREENHOUSE_JOB, "absolute_url": "https://other.example/jobs?gh_jid=1"})
+    result = fetch.fetch("https://acme.io/job-detail/6143413004", client=client)
+    assert not result.ok and "needs a login" in result.reason
+
+
+def test_job_not_on_greenhouse_keeps_the_paste_fallback():
+    client, requested = greenhouse_client(job=None)
+    result = fetch.fetch("https://acme.io/job-detail/6143413004", client=client)
+    assert not result.ok and len(requested) == 2
+
+
+def test_readable_page_or_one_without_a_job_id_never_asks_greenhouse():
+    client, requested = greenhouse_client(page=html("plain_company_page.html"))
+    assert fetch.fetch("https://acme.io/job-detail/6143413004", client=client).ok
+    client, requested_too = greenhouse_client()
+    assert not fetch.fetch("https://acme.io/careers/engineer", client=client).ok
+    assert len(requested) == 1 and len(requested_too) == 1

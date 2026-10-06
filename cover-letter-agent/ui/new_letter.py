@@ -31,7 +31,7 @@ def _init_state() -> None:
 
 
 def _clear_status() -> None:
-    for key in ("nl_fetch_error", "nl_duplicate", "nl_error", "nl_confirm", "nl_problem"):
+    for key in ("nl_fetch_error", "nl_duplicate", "nl_error", "nl_confirm", "nl_problem", "nl_fill_unread"):
         st.session_state.pop(key, None)
 
 
@@ -82,22 +82,40 @@ def _draft_for(app_id: int) -> None:
         _run(app_id)
 
 
-def _fill_without_letter() -> None:
-    """Save the link as an application with no letter and open the form filler."""
+def _fill_without_letter(unread: dict | None = None) -> None:
+    """Save the link as an application with no letter and open the form filler.
+
+    If the page can't be read, nothing is saved yet: you're asked to paste the posting, or
+    to open the form without it (`unread`, the failed read's job data)."""
     url = (st.session_state.get("nl_url") or "").strip()
+    pasted = (st.session_state.get("nl_paste") or "").strip() if st.session_state.get("nl_paste_mode") else ""
     if not url:
         st.session_state.nl_problem = "Add the job posting link first."
         st.rerun()
     if existing := db.find_by_url(url):
         nav.go("apply", app=existing["id"])
-    with st.spinner("Saving the posting…"):
-        result = fetch.fetch(url)
-    text = result.text if result.ok else ""
+    hints = {}
+    if pasted:
+        if len(pasted) < 200:
+            st.session_state.nl_problem = "That posting text is too short to work from. Paste the whole posting."
+            st.rerun()
+        text, _ = fetch.trim(pasted)
+    elif unread is not None:
+        text, hints = "", unread
+    else:
+        with st.spinner("Saving the posting…"):
+            result = fetch.fetch(url)
+        if not result.ok:
+            st.session_state.nl_fetch_error = result.reason
+            st.session_state.nl_fill_unread = {"url": url, "hints": result.hints}
+            st.session_state.nl_paste_mode = True
+            st.rerun()
+        text, hints = result.text, result.hints
     app_id = db.create_application(url, text, st.session_state.get("nl_notes", ""))
     # The page's own job data when it has some (even if the rest couldn't be read), else a
     # guess from the link. Both can be corrected on the Fill application screen.
-    company = result.hints.get("company") or fetch.company_from_url(url)
-    db.update_application(app_id, company=company, title=result.hints.get("title"))
+    company = hints.get("company") or fetch.company_from_url(url)
+    db.update_application(app_id, company=company, title=hints.get("title"))
     nav.go("apply", app=app_id)
 
 
@@ -191,6 +209,13 @@ def new_letter_page() -> None:
 def _status_messages() -> None:
     if reason := st.session_state.get("nl_fetch_error"):
         st.warning(f"**Couldn't read this page.** {reason} Paste the posting text below; the link is kept for your records.")
+        unread = st.session_state.get("nl_fill_unread")
+        if unread and unread["url"] == (st.session_state.get("nl_url") or "").strip():
+            st.caption("Then click Fill without a letter again. Without it, the application has no saved job "
+                       "description, and the agent has less to go on for questions about the job.")
+            if st.button("Open the form without it", type="tertiary"):
+                _clear_status()
+                _fill_without_letter(unread["hints"])
     if problem := st.session_state.get("nl_problem"):
         st.error(problem)
     if app_id := st.session_state.get("nl_duplicate"):

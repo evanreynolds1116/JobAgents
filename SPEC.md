@@ -210,6 +210,8 @@ The most common failure will be job sites that block automated fetching. A paste
 | --- | --- |
 | Site blocks the fetch, needs a login, or returns little text (common on LinkedIn and some job boards) | Show "Couldn't read this page" and a text box to paste the posting; keep the URL for the record |
 | Page is rendered with JavaScript and fetch returns a shell | Same paste fallback in v1; optional later: a headless browser (Playwright) |
+| A company careers page run by Greenhouse returns a shell (a `gh_jid` parameter or a long job number in the link) | Read the posting from Greenhouse's public job API instead, only when that job points back to the same site; otherwise the paste fallback |
+| Fill without a letter, and the page can't be read | Same "Couldn't read this page" and paste box before anything is saved, with an option to open the form without it. An application with no saved posting says so on its detail page and takes a pasted copy |
 | Page has several jobs, or the parse finds no clear title | Show what was found and ask you to confirm or correct the company and title before drafting |
 | Posting is expired or a 404 | Explain the error; offer the paste fallback |
 | Very long posting | Trim navigation and boilerplate before sending; cap at a set length and warn if trimmed |

@@ -543,15 +543,42 @@ def test_fill_without_a_letter_from_a_pasted_link(calls):
     assert db.list_drafts(1) == []
 
 
-def test_fill_without_a_letter_keeps_the_company_from_a_page_it_couldnt_read(calls, monkeypatch):
+def unreadable(monkeypatch):
     monkeypatch.setattr(fetch, "fetch", lambda url, client=None: fetch.FetchResult(
         False, url, reason="This page builds itself with JavaScript.",
         hints={"company": "OnePay", "title": "Software Engineer"}))
     at = open_new_letter()
     at.text_input(key="nl_url").input("https://jobs.ashbyhq.com/oneapp/123")
     click(at, "Fill without a letter")
+    return at
+
+
+def test_fill_without_a_letter_asks_for_the_posting_it_couldnt_read(calls, monkeypatch):
+    at = unreadable(monkeypatch)
+    assert calls.went == [] and db.get_application(1) is None  # nothing saved yet
+    assert "Couldn't read this page." in at.warning[0].value and "JavaScript" in at.warning[0].value
+    at.text_area(key="nl_paste").input(POSTING)
+    click(at, "Fill without a letter")
+    assert calls.went == [("apply", {"app": 1})]
+    app = db.get_application(1)
+    assert app["posting_text"] == POSTING and app["company"] == "Oneapp"  # guessed from the link
+    assert db.list_drafts(1) == []
+
+
+def test_fill_without_a_letter_can_skip_the_posting(calls, monkeypatch):
+    at = unreadable(monkeypatch)
+    click(at, "Open the form without it")
+    assert calls.went == [("apply", {"app": 1})]
     app = db.get_application(1)
     assert (app["company"], app["title"], app["posting_text"]) == ("OnePay", "Software Engineer", "")
+
+
+def test_fill_without_a_letter_needs_the_whole_posting(calls, monkeypatch):
+    at = unreadable(monkeypatch)
+    at.text_area(key="nl_paste").input("Software Engineer at OnePay.")
+    click(at, "Fill without a letter")
+    assert "That posting text is too short to work from." in at.error[0].value
+    assert calls.went == [] and db.get_application(1) is None
 
 
 def test_fill_without_a_letter_needs_a_link(calls):

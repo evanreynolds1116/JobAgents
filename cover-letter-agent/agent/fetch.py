@@ -3,6 +3,10 @@
 One request per URL you paste, made the way a browser visit would be. It never
 logs in, retries around blocks or tries to get past bot protection; anything it
 can't read falls back to pasting the text (spec: Edge cases & error handling).
+The one exception: a careers page that builds itself with JavaScript but carries a
+Greenhouse job ID (cribl.io/job-detail/6143413004, acme.com/careers?gh_jid=123) is
+read from Greenhouse's public job API instead, at most two requests, and only when
+that job points back to the same site.
 """
 
 import json
@@ -122,6 +126,14 @@ def fetch(url: str, client: httpx.Client | None = None) -> FetchResult:
         headers={"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"},
     )
     try:
+        return _fetch(url, client)
+    finally:
+        if own_client:
+            client.close()
+
+
+def _fetch(url: str, client: httpx.Client) -> FetchResult:
+    try:
         # Redirects are followed one at a time so a link that leads to a site on the
         # no-fetch list (an aggregator forwarding to Indeed, say) stops before it's requested.
         for _ in range(MAX_REDIRECTS + 1):
@@ -141,9 +153,6 @@ def fetch(url: str, client: httpx.Client | None = None) -> FetchResult:
         return FetchResult(False, url, reason="The site took too long to respond.")
     except httpx.HTTPError:
         return FetchResult(False, url, reason="Couldn't connect to that site.")
-    finally:
-        if own_client:
-            client.close()
 
     final_url = str(response.url)
     status = response.status_code
@@ -157,7 +166,10 @@ def fetch(url: str, client: httpx.Client | None = None) -> FetchResult:
     if "html" not in content_type and "text" not in content_type:
         return FetchResult(False, final_url, reason="That link isn't a web page (it may be a PDF or a download).")
 
-    return extract(response.text, final_url)
+    result = extract(response.text, final_url)
+    if not result.ok and (posting := greenhouse_posting(final_url, client)):
+        return posting
+    return result
 
 
 def extract(html: str, url: str = "") -> FetchResult:
@@ -218,13 +230,88 @@ def _job_posting_data(html: str) -> tuple[dict, str]:
             org = item.get("hiringOrganization") or {}
             company = _clean(org.get("name") if isinstance(org, dict) else org)
             location = _location(item.get("jobLocation"))
-            description = html_to_text(item.get("description") or "")
-            header = [f"Job title: {title}" if title else "",
-                      f"Company: {company}" if company else "",
-                      f"Location: {location}" if location else ""]
-            body = "\n".join(h for h in header if h) + "\n\n" + description
-            return {"title": title, "company": company}, body.strip()
+            body = _posting(title, company, location, html_to_text(item.get("description") or ""))
+            return {"title": title, "company": company}, body
     return {}, ""
+
+
+def _posting(title: str | None, company: str | None, location: str | None, description: str) -> str:
+    header = [f"Job title: {title}" if title else "",
+              f"Company: {company}" if company else "",
+              f"Location: {location}" if location else ""]
+    return ("\n".join(h for h in header if h) + "\n\n" + description).strip()
+
+
+# --- Greenhouse careers pages --------------------------------------------------
+
+GREENHOUSE_JOB_API = "https://boards-api.greenhouse.io/v1/boards/{board}/jobs/{job_id}"
+
+
+def greenhouse_job(url: str) -> tuple[list[str], str] | None:
+    """The Greenhouse board names to try and the job ID a link points to, or None.
+
+    On greenhouse.io the board is in the link. On a company's own careers page the job ID
+    is a gh_jid parameter or a long number at the end of the path, and the board is
+    guessed from the company's domain (cribl.io -> "cribl"), so the answer is checked
+    against the page's site in greenhouse_posting."""
+    url = normalize_input_url(url)
+    parts = urlsplit(url)
+    host = _host(url)
+    query = parse_qs(parts.query)
+    path = [p for p in parts.path.split("/") if p]
+    if host == "greenhouse.io" or host.endswith(".greenhouse.io"):
+        board = query.get("for", [""])[0] or (path[0] if path and path[0] != "embed" else "")
+        job_id = (query.get("token", [""])[0] or query.get("gh_jid", [""])[0]
+                  or next((p for p in reversed(path) if p.isdigit()), ""))
+        boards = [board.lower()] if board else []
+    else:
+        job_id = query.get("gh_jid", [""])[0] or next((p for p in reversed(path) if p.isdigit() and len(p) >= 7), "")
+        name = (company_from_url(url) or "").lower()
+        boards = list(dict.fromkeys(b for b in (name.replace(" ", ""), name.replace(" ", "-")) if b))
+    if not job_id.isdigit() or not boards:
+        return None
+    return boards, job_id
+
+
+def _site(host: str) -> str:
+    """careers.acme.com and www.acme.com -> acme.com; jobs.acme.co.uk -> acme.co.uk."""
+    labels = [label for label in host.lower().split(".") if label]
+    keep = 3 if len(labels) >= 3 and labels[-2] in ("co", "com", "org", "net", "ac") and len(labels[-1]) == 2 else 2
+    return ".".join(labels[-keep:])
+
+
+def greenhouse_posting(url: str, client: httpx.Client) -> FetchResult | None:
+    """The posting from Greenhouse's public job API, for a careers page that couldn't be
+    read. None when the link has no Greenhouse job ID, the job isn't there, or it belongs
+    to a different site than the page."""
+    found = greenhouse_job(url)
+    if not found:
+        return None
+    boards, job_id = found
+    on_greenhouse = _host(url).endswith("greenhouse.io")
+    for board in boards:
+        try:
+            response = client.get(GREENHOUSE_JOB_API.format(board=board, job_id=job_id), follow_redirects=False)
+        except httpx.HTTPError:
+            return None
+        if response.status_code != 200:
+            continue
+        try:
+            data = response.json()
+        except ValueError:
+            return None
+        if not isinstance(data, dict):
+            continue
+        if not on_greenhouse and _site(_host(str(data.get("absolute_url") or ""))) != _site(_host(url)):
+            continue
+        title, company = _clean(data.get("title")), _clean(data.get("company_name"))
+        location = _clean((data.get("location") or {}).get("name"))
+        text = _posting(title, company, location, html_to_text(data.get("content") or ""))
+        if len(text) < MIN_CHARS:
+            return None
+        text, trimmed = trim(text)
+        return FetchResult(True, url, text=text, trimmed=trimmed, hints={"title": title, "company": company})
+    return None
 
 
 def _walk(data):

@@ -138,6 +138,22 @@ def test_detail_shows_dates_posting_and_the_letter_you_approved(went):
     assert "Recruiter call, 15 minutes. Second interview next week." in page_text
 
 
+def test_detail_without_a_saved_posting_takes_a_pasted_one(went):
+    app_id = make("Fieldhouse Media", "Social Media Manager", status="submitted")
+    db.update_application(app_id, posting_text="")
+    at = page("detail", app_id)
+    assert "No job description saved." in text(at)
+    assert not any(c.value.startswith("Saved copy from") for c in at.caption)
+    click(at, "Save description")  # nothing pasted yet: nothing saved
+    assert db.get_application(app_id)["posting_text"] == "" and not at.success
+    at.text_area(key=f"dt_posting_{app_id}").input(POSTING)
+    click(at, "Save description")
+    assert db.get_application(app_id)["posting_text"] == POSTING
+    assert "Job description saved." in [s.value for s in at.success]
+    assert "You'll run our newsletter and paddle festivals." in text(at)
+    assert any(c.value.startswith("Saved copy from") for c in at.caption)
+
+
 def test_notes_log(went):
     app_id = make("Fieldhouse Media", "Social Media Manager")
     at = page("detail", app_id)

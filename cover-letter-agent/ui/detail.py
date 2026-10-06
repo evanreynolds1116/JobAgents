@@ -8,6 +8,7 @@ from html import escape
 
 import streamlit as st
 
+from agent import fetch
 from storage import db, filled
 from ui import dates, nav
 from ui.applications import status_label
@@ -103,14 +104,37 @@ def _actions(app: dict, drafts: list[dict]) -> None:
                    "to record the date.")
 
 
+def _add_posting(app: dict) -> None:
+    """No saved description (the page couldn't be read when the application was saved):
+    say so, and take a pasted copy."""
+    st.markdown("**No job description saved.**")
+    st.caption("The app couldn't read the posting page when this application was saved. Copy the whole "
+               "posting from the page and paste it here to keep a copy.")
+    st.text_area("Job description", key=f"dt_posting_{app['id']}", height=200,
+                 label_visibility="collapsed", placeholder="Paste the job posting here.")
+    st.button("Save description", on_click=_save_posting, args=(app["id"],))
+
+
+def _save_posting(app_id: int) -> None:
+    pasted = (st.session_state.get(f"dt_posting_{app_id}") or "").strip()
+    if pasted:
+        text, trimmed = fetch.trim(pasted)
+        db.update_application(app_id, posting_text=text)
+        st.session_state.dt_flash = (f"Job description saved. Only its first {fetch.MAX_CHARS:,} characters "
+                                     "were kept." if trimmed else "Job description saved.")
+
+
 def _tabs(app: dict, drafts: list[dict]) -> None:
     sent = next((d for d in drafts if d["version"] == app.get("sent_version")), None)
     letter_tab = f"Cover letter sent (v{sent['version']})" if sent else "Cover letter"
     description, letter, answers = st.tabs(["Job description", letter_tab, "Your answers"])
     with description, st.container(border=True, key="card_posting"):
-        st.caption(f"Saved copy from {dates.day(app['created_at'])}. It stays here even if the original "
-                   "posting is taken down.")
-        st.markdown(_md(app.get("posting_text") or ""))
+        if app.get("posting_text"):
+            st.caption(f"Saved copy from {dates.day(app['created_at'])}. It stays here even if the original "
+                       "posting is taken down.")
+            st.markdown(_md(app["posting_text"]))
+        else:
+            _add_posting(app)
     with letter, st.container(border=True, key="card_sent_letter"):
         if sent:
             st.caption(f"Approved {dates.full(app['approved_at'])}" if app.get("approved_at")
