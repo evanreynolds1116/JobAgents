@@ -8,6 +8,7 @@ correct the result in the Profile screen. The original file is kept for referenc
 import hashlib
 import io
 import re
+import shutil
 import statistics
 from collections import Counter
 from datetime import datetime
@@ -57,6 +58,27 @@ def original_file() -> Path | None:
         if path.exists():
             return path
     return None
+
+
+def upload_name(name: str, suffix: str) -> str:
+    """The file name employers see on application forms: "Evan Reynolds" -> "EvanReynoldsResume.pdf"."""
+    words = [re.sub(r"[^A-Za-z0-9]", "", w) for w in name.split()]
+    return "".join(w for w in words if w) + "Resume" + suffix
+
+
+def upload_file(name: str) -> Path | None:
+    """A copy of the original named for uploading to forms (data/upload/), refreshed each time,
+    so a replaced resume is never sent under an old copy."""
+    original = original_file()
+    if original is None:
+        return None
+    folder = config.DATA_DIR / "upload"
+    folder.mkdir(parents=True, exist_ok=True)
+    for old in folder.glob("*Resume.*"):
+        old.unlink()
+    target = folder / upload_name(name, original.suffix)
+    shutil.copyfile(original, target)
+    return target
 
 
 def original_info() -> tuple[str, datetime] | None:

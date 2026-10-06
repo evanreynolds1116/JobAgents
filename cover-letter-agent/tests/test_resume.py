@@ -161,6 +161,24 @@ def test_import_stores_original_and_text(app_paths):
     assert not (config.DATA_DIR / "resume_original.pdf").exists()
 
 
+def test_upload_copy_is_named_for_employers(app_paths):
+    assert resume.upload_name("Evan Reynolds", ".pdf") == "EvanReynoldsResume.pdf"
+    assert resume.upload_name("Mary-Jane O'Neil", ".docx") == "MaryJaneONeilResume.docx"
+    assert resume.upload_name("", ".pdf") == "Resume.pdf"
+    assert resume.upload_file("Evan Reynolds") is None  # no resume uploaded yet
+
+    pdf = (FIXTURES / "resume_one_column.pdf").read_bytes()
+    resume.import_file("My Resume.PDF", pdf)
+    copy = resume.upload_file("Evan Reynolds")
+    assert copy.name == "EvanReynoldsResume.pdf" and copy.read_bytes() == pdf
+    assert resume.original_file().exists()  # the original stays
+
+    # A replaced resume (and a changed name) leaves no stale copy behind.
+    resume.import_file("resume.docx", make_docx())
+    copy = resume.upload_file("Evan R")
+    assert [p.name for p in copy.parent.iterdir()] == ["EvanRResume.docx"]
+
+
 def test_edits_persist_and_hash_changes(app_paths):
     assert not resume.has_resume()
     resume.save_text("# Jordan Avery\n\nEdited by hand.")

@@ -94,7 +94,8 @@ def prepare(app_id: int, **session_args) -> session.Session:
     if found := problems(app):
         raise StartProblem(" ".join(found))
     with_letter = has_letter(app)
-    files = {"resume": resume.original_file(), "cover_letter": letter_file(app) if with_letter else None}
+    files = {"resume": resume.upload_file(profile_store.load().name),
+             "cover_letter": letter_file(app) if with_letter else None}
     mapper, drafter, after_fill = make_steps(app)
     return session.Session(app_id, app["url"], mapper, files, drafter=drafter, after_fill=after_fill,
                            has_letter=with_letter, **session_args)

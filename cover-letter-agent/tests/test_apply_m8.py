@@ -193,5 +193,9 @@ def test_prepare_without_a_letter(app_paths, monkeypatch):
     app = db.create_application("https://jobs.ashbyhq.com/onepay/123", "Posting", "")
     monkeypatch.setattr(start.pipeline, "make_client", lambda key: object())
     monkeypatch.setattr(start, "letter_file", lambda a: pytest.fail("no letter to export"))
+    from storage import profile as profile_store
+    profile_store.save(profile_store.Profile(name="Jordan Avery"))
+    (config.DATA_DIR / "resume_original.pdf").write_bytes(b"%PDF-1.4 test")
     made = start.prepare(app)
     assert made.has_letter is False and made.files["cover_letter"] is None and made.drafter is not None
+    assert made.files["resume"].name == "JordanAveryResume.pdf"  # the name employers see
