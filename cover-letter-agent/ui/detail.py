@@ -9,7 +9,9 @@ from html import escape
 import streamlit as st
 
 from agent import fetch
+from search.normalize import pay_text, salary_from_text
 from storage import db, filled
+from storage import jobs as job_store
 from ui import dates, nav
 from ui.applications import status_label
 
@@ -72,12 +74,30 @@ def _key_dates(app: dict) -> None:
         ("Last update", dates.day(last_note["date"]) if last_note else dates.day(db.last_activity(app)),
          (last_note["text"][:40] + ("…" if len(last_note["text"]) > 40 else "")) if last_note else ""),
     ]
-    for col, (label, value, sub) in zip(st.columns(4), cards):
+    if salary := _salary(app):
+        cards.append(("Salary", *salary))
+    for col, (label, value, sub) in zip(st.columns(len(cards)), cards):
         with col, st.container(border=True, key=f"card_date_{label.replace(' ', '_').lower()}"):
             st.caption(label)
-            st.markdown(f"**{escape(value)}**")
+            st.markdown(f"**{_md(escape(value))}**")
             if sub:
                 st.caption(sub)
+
+
+def _salary(app: dict) -> tuple[str, str] | None:
+    """The pay for this job and where it came from: the job board's stated salary, else the
+    saved posting's, else Adzuna's estimate. None when nothing states one."""
+    job = job_store.get_job(app["job_id"]) if app.get("job_id") else None
+    listed = job and (job["salary_min"] or job["salary_max"])
+    if listed and not job["salary_estimated"]:
+        return pay_text(job["salary_min"], job["salary_max"]), "Listed with the job"
+    if stated := salary_from_text(app.get("posting_text") or ""):
+        source = ("From the job description" if stated.ranges == 1
+                  else f"{stated.ranges} ranges in the job description, often by location")
+        return pay_text(stated.low, stated.high, stated.hourly), source
+    if listed:
+        return pay_text(job["salary_min"], job["salary_max"]), "Adzuna's estimate"
+    return None
 
 
 def _actions(app: dict, drafts: list[dict]) -> None:

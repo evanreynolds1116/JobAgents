@@ -454,3 +454,41 @@ def test_older_database_gets_the_fit_columns(app_paths):
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
     conn.close()
     assert {"fit", "fit_reason"} <= columns
+
+
+# --- Salary stated in a posting (application detail) ---------------------------------
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("Base Salary Range\n\n$150,000—$175,000 USD", (150000, 175000, False, 1)),
+    ("Pay: $150-175k", (150000, 175000, False, 1)),
+    ("between $90K and $110K annually", (90000, 110000, False, 1)),
+    ("$120,000 – $140,000 per year", (120000, 140000, False, 1)),
+    ("$45 to $60 per hour", (45, 60, True, 1)),
+    ("$22.50 - $28/hr", (22.5, 28, True, 1)),
+    ("Base salary: $120,000", (120000, 120000, False, 1)),
+    ("Tier 1: $150,000 - $180,000\nTier 2: $135,000 - $160,000", (135000, 180000, False, 2)),
+])
+def test_salary_from_text(text, expected):
+    found = normalize.salary_from_text(text)
+    assert (found.low, found.high, found.hourly, found.ranges) == expected
+
+
+@pytest.mark.parametrize("text", [
+    "We've raised $100M - $200M from great investors.",
+    "A $500 learning stipend and a $1,000 - $2,000 home office budget.",
+    "Customers save $250,000 a year with us.",       # one amount, not on a line about pay
+    "Competitive salary and equity.",
+    "",
+])
+def test_no_salary_in_text(text):
+    assert normalize.salary_from_text(text) is None
+
+
+def test_pay_text():
+    assert normalize.pay_text(150000, 175000) == "$150,000–$175,000"
+    assert normalize.pay_text(22.5, 28, hourly=True) == "$22.50–$28 an hour"
+    assert normalize.pay_text(120000, 120000) == "$120,000"
+    assert normalize.pay_text(None, 90000) == "Up to $90,000"
+    assert normalize.pay_text(80000, None) == "From $80,000"
+    assert normalize.pay_text(None, None) == ""

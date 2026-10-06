@@ -105,3 +105,81 @@ def salary_outside(job: Job, low: int | None, high: int | None) -> bool:
     if high and bottom > high:
         return True
     return False
+
+
+# Salary stated in a posting's text ----------------------------------------------------
+# For the application detail page: most applications start from a pasted link, so the
+# only place their pay appears is the saved posting. Read by code, not Claude.
+
+_NUMBER = r"(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)"
+_NOT_LARGE = r"(?!\s?(?:[mMbB]\b|mm\b|million|billion))"  # "$100M raised" isn't pay
+_AMOUNT = r"\$\s?" + _NUMBER + r"\s?([kK]\b)?" + _NOT_LARGE
+RANGE_RE = re.compile(_AMOUNT + r"\s*(?:-|–|—|to|and)\s*(?:USD\s*)?(?:\$\s?)?" + _NUMBER + r"\s?([kK]\b)?" + _NOT_LARGE)
+SINGLE_RE = re.compile(_AMOUNT)
+HOURLY_RE = re.compile(r"^\W{0,3}(?:USD\s*)?(?:per|an|/|a)\s*(?:hour|hr)\b|^\W{0,3}(?:USD\s*)?hourly\b", re.I)
+PAY_WORDS = re.compile(r"\b(salary|compensation|pay|base|wage|OTE)\b", re.I)
+
+
+@dataclass(frozen=True)
+class StatedSalary:
+    low: float
+    high: float
+    hourly: bool = False
+    ranges: int = 1   # more than one usually means pay by location or level; low and high span them all
+
+
+def _amount(number: str, k: str | None) -> float:
+    return float(number.replace(",", "")) * (1000 if k else 1)
+
+
+def _pay(low: float, high: float, after: str) -> tuple[float, float, bool] | None:
+    """A plausible yearly or hourly amount, else None (a stipend, a bonus, a deal size)."""
+    hourly = bool(HOURLY_RE.search(after))
+    if hourly and 7 <= low <= high <= 500:
+        return low, high, True
+    if not hourly and 20_000 <= low <= high <= 2_000_000:
+        return low, high, False
+    return None
+
+
+def salary_from_text(text: str) -> StatedSalary | None:
+    """The pay a posting states: "$150,000—$175,000 USD", "$150k-$175k", "$45 to $60 per
+    hour", or one amount on a line about salary. None when there isn't one."""
+    found: list[tuple[float, float, bool]] = []
+    for m in RANGE_RE.finditer(text or ""):
+        low_k, high_k = m.group(2), m.group(4)
+        low, high = _amount(m.group(1), low_k), _amount(m.group(3), high_k)
+        if high_k and not low_k and low < 1000:  # "$150-175k"
+            low *= 1000
+        if pay := _pay(low, high, text[m.end():m.end() + 30]):
+            found.append(pay)
+    if not found:
+        for line in (text or "").splitlines():
+            if not PAY_WORDS.search(line):
+                continue
+            for m in SINGLE_RE.finditer(line):
+                value = _amount(m.group(1), m.group(2))
+                if pay := _pay(value, value, line[m.end():m.end() + 30]):
+                    found.append(pay)
+    if not found:
+        return None
+    hourly = found[0][2]
+    same_kind = list(dict.fromkeys(p for p in found if p[2] == hourly))
+    return StatedSalary(min(p[0] for p in same_kind), max(p[1] for p in same_kind), hourly, len(same_kind))
+
+
+def pay_text(low: float | None, high: float | None, hourly: bool = False) -> str:
+    """Full figures for the detail page: "$150,000–$175,000", "$45–$60.50 an hour",
+    "Up to $90,000"."""
+    def money(n: float) -> str:
+        return f"${n:,.2f}" if n != int(n) else f"${int(n):,}"
+
+    if low and high and round(low) != round(high):
+        text = f"{money(low)}–{money(high)}"
+    elif low or high:
+        text = money(low or high)
+        if not (low and high):
+            text = f"From {text}" if low else f"Up to {text}"
+    else:
+        return ""
+    return text + (" an hour" if hourly else "")

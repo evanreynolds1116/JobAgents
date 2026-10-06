@@ -154,6 +154,34 @@ def test_detail_without_a_saved_posting_takes_a_pasted_one(went):
     assert any(c.value.startswith("Saved copy from") for c in at.caption)
 
 
+def test_detail_shows_the_salary_from_the_posting(went):
+    app_id = make("Fieldhouse Media", "Social Media Manager")
+    at = page("detail", app_id)
+    assert "Salary" not in [c.value for c in at.caption]  # the posting doesn't state one: no card
+    db.update_application(app_id, posting_text=POSTING + "\n\nBase Salary Range\n$150,000—$175,000 USD")
+    at = page("detail", app_id)
+    assert "**$150,000–$175,000**" in [m.value.replace("\\$", "$") for m in at.markdown]
+    assert "From the job description" in [c.value for c in at.caption]
+
+
+@pytest.mark.parametrize("estimated, value, source", [
+    (False, "**$95,000–$120,000**", "Listed with the job"),
+    (True, "**$95,000–$120,000**", "Adzuna's estimate"),
+])
+def test_detail_shows_the_salary_from_find_jobs(went, estimated, value, source):
+    from search.normalize import Job
+    from storage import jobs as job_store
+
+    job_store.upsert(Job("adzuna", "9", "Social Media Manager", "Fieldhouse Media", "Franklin, TN", "hybrid", 95000,
+                         120000, estimated, None, "https://fieldhousemedia.example/job", "Snippet."), None,
+                     datetime.now().isoformat(timespec="seconds"))
+    app_id = make("Fieldhouse Media", "Social Media Manager")
+    db.update_application(app_id, job_id=job_store.list_jobs("new")[0]["id"])
+    at = page("detail", app_id)
+    assert value in [m.value.replace("\\$", "$") for m in at.markdown]
+    assert source in [c.value for c in at.caption]
+
+
 def test_notes_log(went):
     app_id = make("Fieldhouse Media", "Social Media Manager")
     at = page("detail", app_id)
