@@ -67,6 +67,28 @@ def test_needs_a_job_link(went, monkeypatch):
     at = apply_page(app_id)
     assert "no job link" in at.warning[0].value
     assert next(b for b in at.button if b.label == "Open the form").disabled
+    at.text_input(key=f"ap_link_{app_id}").input("jobs.lever.co/acme/1").run()
+    assert not at.warning and not next(b for b in at.button if b.label == "Open the form").disabled
+
+
+def test_paste_a_different_application_link(went, monkeypatch):
+    from storage import db
+
+    key()
+    monkeypatch.setattr(session, "_current", None)
+    app_id = db.create_application("https://www.adzuna.com/land/ad/123", "Posting text", "")
+    started = []
+    monkeypatch.setattr(start, "prepare", lambda i: FakeSession(i, state="finding"))
+    monkeypatch.setattr(session, "start", lambda s: started.append(s))
+    at = apply_page(app_id)
+    box = at.text_input(key=f"ap_link_{app_id}")
+    assert box.value == "https://www.adzuna.com/land/ad/123"
+    assert any("Adzuna blocks the agent's browser" in c.value for c in at.caption)
+    box.input("job-boards.greenhouse.io/acme/jobs/9").run()
+    assert not any("Adzuna" in c.value for c in at.caption)
+    click(at, "Open the form")
+    assert db.get_application(app_id)["url"] == "https://job-boards.greenhouse.io/acme/jobs/9"
+    assert started
 
 
 def test_open_the_form_starts_a_session(went, monkeypatch):

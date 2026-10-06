@@ -25,7 +25,7 @@ class StartProblem(Exception):
 def problems(app: dict) -> list[str]:
     found = []
     if not app.get("url"):
-        found.append("This application has no job link. Add the company's posting link first.")
+        found.append("This application has no job link. Paste the company's posting or application link above.")
     if config.load_settings().key_status != "ok":
         found.append("Add your Claude API key to .env.")
     return found

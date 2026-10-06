@@ -72,17 +72,32 @@ def apply_page() -> None:
     _live(app_id)
 
 
+def _url(link: str) -> str:
+    link = link.strip()
+    return link if not link or "://" in link else f"https://{link}"
+
+
 def _not_started(app: dict) -> None:
-    st.caption(" · ".join(x for x in (app.get("title"), app.get("url")) if x))
+    st.caption(app.get("title") or "")
     with st.container(border=True, key="card_fill_start"):
         st.markdown("A Chrome window opens with the app's own profile. The agent finds the application form, "
                     "asks you to confirm it, fills what it can from your profile, resume, application answers "
                     "and approved letter, drafts short screening answers for you to check, and pauses for you to "
                     "review. **It never clicks Submit.** You log in and solve any CAPTCHA yourself.")
+        link = st.text_input("Application link", value=app.get("url") or "", key=f"ap_link_{app['id']}",
+                             placeholder="https://job-boards.greenhouse.io/company/jobs/123",
+                             help="The company's posting or application page. The agent starts here.")
+        url = _url(link)
+        if "adzuna." in url.lower():
+            st.caption("This is the link from your search. Adzuna blocks the agent's browser, so paste the "
+                       "company's own posting or application link here.")
+        else:
+            st.caption("To go straight to a different page, such as the company's application form, paste its "
+                       "link here.")
         if not start.has_letter(app):
             st.caption("No approved cover letter: the form is filled without one. If it requires a letter, the agent "
                        "pauses and offers to draft one.")
-        found = start.problems(app)
+        found = start.problems({**app, "url": url})
         for problem in found:
             st.warning(problem)
         other = session.current()
@@ -90,6 +105,8 @@ def _not_started(app: dict) -> None:
         if busy:
             st.warning("Another application is being filled. Close its browser window first.")
         if st.button("Open the form", type="primary", disabled=bool(found) or busy, key="ap_start"):
+            if url != (app.get("url") or ""):
+                db.update_application(app["id"], url=url)
             try:
                 with st.spinner("Preparing your files…"):
                     session.start(start.prepare(app["id"]))
@@ -122,7 +139,7 @@ def _other_link(app_id: int, current) -> None:
         link = st.text_input("Company's link for this job", key="ap_new_url",
                              placeholder="https://job-boards.greenhouse.io/company/jobs/123")
         if st.button("Use this link", key="ap_use_link", disabled=not link.strip()):
-            url = link.strip() if "://" in link else f"https://{link.strip()}"
+            url = _url(link)
             db.update_application(app_id, url=url)
             current.send("close")
             st.session_state.pop("ap_new_url", None)
