@@ -9,9 +9,11 @@ A personal job application assistant that runs on your own computer. It has thre
 | `PROGRESS.md` | Build tracker: milestones, acceptance checklists, decisions and a session log |
 | `ui-mockup/` | The screen designs the app follows, with notes on each screen and the design tokens |
 
-## Quick start (Windows)
+## Quick start
 
 You need Python 3.12, Git, Google Chrome and a Claude API key. Free Adzuna keys are needed for job search only.
+
+On Windows, in PowerShell:
 
 ```
 git clone https://github.com/evanreynolds1116/JobAgents.git
@@ -21,9 +23,19 @@ python -m venv .venv
 copy .env.example .env
 ```
 
-Put your keys in `.env`, then double-click `run.bat`. The app opens at http://localhost:8501.
+On a Mac, in Terminal:
 
-To start it automatically when you sign in, update it, back it up or move it to another computer, see **Deploy** in [`cover-letter-agent/README.md`](cover-letter-agent/README.md#deploy). The app is local only by design: it has no login, it listens on localhost and it drives Chrome on the same machine.
+```
+cd ~ && git clone https://github.com/evanreynolds1116/JobAgents.git
+cd ~/JobAgents/cover-letter-agent
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+Put your keys in `.env`, then double-click `run.bat` on Windows or `run.command` on a Mac. The app opens at http://localhost:8501.
+
+To add a desktop icon, start it when you sign in, update it, back it up or use it on a second computer, see **Deploy** in [`cover-letter-agent/README.md`](cover-letter-agent/README.md#deploy). The app is local only by design: it has no login, it listens on localhost and it drives Chrome on the same machine.
 
 ## Status
 

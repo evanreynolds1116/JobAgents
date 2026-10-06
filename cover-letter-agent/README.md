@@ -10,15 +10,15 @@ See `../SPEC.md` for the full spec and `../PROGRESS.md` for build status and dec
 
 ## What you need
 
-- Windows 10 or 11. macOS and Linux should work with the usual path changes, but they haven't been tested.
-- Python 3.12 (tested on 3.12.4), from python.org. Tick "Add python.exe to PATH" when you install it.
-- Git, to download and update the app.
+- Windows 10 or 11, or a Mac running macOS 13 or later. The app is tested on Windows. The Mac steps below use the same code and libraries, but they haven't been tried on a Mac yet.
+- Python 3.12 (tested on 3.12.4), from https://www.python.org/downloads/. On Windows, tick "Add python.exe to PATH" when you install it.
+- Git, to download and update the app. On a Mac, running `git` the first time offers to install it.
 - Google Chrome, for filling applications. The app drives your installed Chrome and downloads no browser of its own.
 - Microsoft Word or LibreOffice, for PDF export only. Export to .docx works without either.
 - A Claude API key from https://console.anthropic.com/settings/keys. Drafting a letter costs about $0.10, and mapping a form costs a few cents per page.
 - For job search only: free Adzuna keys from https://developer.adzuna.com/signup.
 
-## Install
+## Install on Windows
 
 In PowerShell:
 
@@ -31,17 +31,34 @@ copy .env.example .env
 notepad .env
 ```
 
-In `.env`, paste your Claude key after `ANTHROPIC_API_KEY=`. For job search, also fill in `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`. The file is gitignored, and the app reads it fresh, so you don't need to restart after editing it.
+## Install on a Mac
+
+1. Install Python 3.12 from https://www.python.org/downloads/macos/, and Google Chrome if you don't have it.
+2. Open **Terminal** (press Cmd+Space, type Terminal and press Return).
+3. Paste these lines one at a time. The first one puts the app in a folder called `JobAgents` in your home folder.
+
+```
+cd ~ && git clone https://github.com/evanreynolds1116/JobAgents.git
+cd ~/JobAgents/cover-letter-agent
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+chmod +x run.command
+open -e .env
+```
+
+If `python3.12` isn't found, close Terminal and open it again after installing Python, or use `python3`. Check it reports 3.12 with `python3 --version`.
+
+## Your keys
+
+In `.env`, paste your Claude key after `ANTHROPIC_API_KEY=`. For job search, also fill in `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`. Save the file. It's gitignored, and the app reads it fresh, so you don't need to restart after editing it.
 
 ## Run
 
-Double-click `run.bat`, or from this folder:
+- **Windows:** double-click `run.bat`, or run `.venv\Scripts\streamlit run app.py` from this folder.
+- **Mac:** double-click `run.command` in Finder. It opens in Terminal. Or run `.venv/bin/streamlit run app.py` from this folder.
 
-```
-.venv\Scripts\streamlit run app.py
-```
-
-The app opens at http://localhost:8501. It listens on this computer only. To stop it, close the window or press Ctrl+C. Without a valid key, the app shows setup instructions instead of the main screens.
+After a few seconds the app opens in your browser at http://localhost:8501. It listens on this computer only. The window it runs in (Command Prompt or Terminal) is the app itself: leave it open while you use the app, and close it or press Ctrl+C to stop. Without a valid key, the app shows setup instructions instead of the main screens.
 
 On the first run, open **Profile & resume**:
 
@@ -50,36 +67,56 @@ On the first run, open **Profile & resume**:
 3. Fill in your application answers and, if you like, the optional self-identification answers.
 4. Click **Save changes**.
 
+On a Mac, if double-clicking `run.command` says it can't be opened, right-click it, choose **Open**, then **Open** again; macOS remembers this. The first PDF export asks whether Terminal may control Microsoft Word. Click OK, since that's how the PDF is made.
+
 ## Deploy
 
-The app is built to run on your own computer, not on a server. Deploying it means installing it (above), starting it when you sign in, and keeping it updated and backed up.
+The app is built to run on your own computer, not on a server. Deploying it means installing it (above), adding a desktop icon, starting it when you sign in, and keeping it updated and backed up.
+
+### Add a desktop icon
+
+**Windows:** run this once from this folder in PowerShell:
+
+```
+$s = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path ([Environment]::GetFolderPath("Desktop")) "Job Application Assistant.lnk")); $s.TargetPath = (Resolve-Path run.bat).Path; $s.WorkingDirectory = $PWD.Path; $s.WindowStyle = 7; $s.Save()
+```
+
+**Mac:** run this once in Terminal. It puts an alias of `run.command` on your Desktop:
+
+```
+osascript -e "tell application \"Finder\" to set name of (make alias file to (POSIX file \"$HOME/JobAgents/cover-letter-agent/run.command\") at desktop) to \"Job Application Assistant\""
+```
+
+Or do it by hand: in Finder, open `JobAgents/cover-letter-agent`, hold Option+Cmd and drag `run.command` to the Desktop, then rename the alias. To keep it in the Dock instead, drag `run.command` to the right side of the Dock, next to the Trash.
+
+Double-click the icon to start the app. If the app is already running, go to http://localhost:8501 instead. A second copy can't start while the first one is using that address.
 
 ### Start it when you sign in
 
-The daily job search runs only while the app is running. If the scheduled time passes while the app is closed or the computer is asleep, the search runs as soon as the app is open again, unless a search has run since. To start the app automatically when you sign in to Windows, run this once from this folder in PowerShell:
+The daily job search runs only while the app is running. If the scheduled time passes while the app is closed or the computer is asleep, the search runs as soon as the app is open again, unless a search has run since. To set the schedule itself, go to **Find jobs** and use the schedule card.
+
+**Windows:** run this once from this folder in PowerShell. It puts a shortcut in your Startup folder and needs no admin rights:
 
 ```
 $s = (New-Object -ComObject WScript.Shell).CreateShortcut("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\Job Application Assistant.lnk"); $s.TargetPath = (Resolve-Path run.bat).Path; $s.WorkingDirectory = $PWD.Path; $s.WindowStyle = 7; $s.Save()
 ```
 
-This puts a shortcut in your Startup folder. It needs no admin rights. The app starts in a minimized window and opens a browser tab once it's ready. To turn this off, delete the shortcut: press Win+R, type `shell:startup` and delete "Job Application Assistant".
+The app starts in a minimized window and opens a browser tab once it's ready. To turn this off, press Win+R, type `shell:startup` and delete "Job Application Assistant".
 
-To set the schedule itself, go to **Find jobs** and use the schedule card.
+**Mac:** open **System Settings → General → Login Items & Extensions**, click **+** under "Open at Login" and choose `run.command` in `JobAgents/cover-letter-agent`. The app then starts in a Terminal window each time you log in. To turn this off, select it in the same list and click **−**.
 
 ### Update
 
-Close the app, then from this folder:
+Close the app, then from the `cover-letter-agent` folder:
 
-```
-git pull
-.venv\Scripts\python -m pip install -r requirements.txt
-```
+- **Windows (PowerShell):** `git pull`, then `.venv\Scripts\python -m pip install -r requirements.txt`
+- **Mac (Terminal):** `cd ~/JobAgents/cover-letter-agent && git pull && .venv/bin/python -m pip install -r requirements.txt`
 
 Start the app again. Database changes are applied automatically on start-up, and your data is kept.
 
-### Back up and move to another computer
+### Back up, and use more than one computer
 
-Everything personal is in this folder and is gitignored:
+Everything personal is in the `cover-letter-agent` folder and is gitignored, so `git pull` never touches it:
 
 | Path | What it holds |
 | --- | --- |
@@ -90,7 +127,11 @@ Everything personal is in this folder and is gitignored:
 | `data/browser_profile/` | The app's own Chrome profile, with sign-ins to job sites |
 | `output/` | Exported letters, evaluation reports and labeling sheets |
 
-To back up, close the app and copy `.env`, `data/` and `output/` somewhere safe. To move to another computer, install the app there as above, then copy those three back into `cover-letter-agent\`. You can skip `data/browser_profile/` and sign in to job sites again instead.
+To back up, close the app and copy `.env`, `data/` and `output/` somewhere safe.
+
+To set up a second computer, such as a Mac laptop alongside a Windows desktop, install the app there as above. Then either start fresh, or close the app on both computers and copy `.env`, `data/` and `output/` across into `cover-letter-agent`. Leave out `data/browser_profile/`: a Chrome profile doesn't carry between Windows and a Mac, so sign in to job sites again on the new computer. These files work the same on both systems.
+
+The two copies don't sync. Applications, letters and answers you add on one computer won't appear on the other until you copy the files again, and copying overwrites what's there. Keep one computer as the main one, or copy the whole set each time you switch. If the daily search is on in both copies, both run it and both count against your Adzuna limit, so turn the schedule on in only one.
 
 ### Hosting it online
 
@@ -112,6 +153,8 @@ This isn't supported. The app has no login, it listens on localhost only (`.stre
 - `storage/` holds the database, profile, resume and answers code. `export/` makes the .docx and PDF files.
 
 ## Quality checks
+
+The commands here and under Test are written for Windows. On a Mac, run them from `cover-letter-agent` in Terminal with `.venv/bin/python` and forward slashes, for example `.venv/bin/python scripts/eval.py`.
 
 **Cover letters.** Save postings as `tests/fixtures/real/NN.txt` and list them in `tests/fixtures/real/postings.json`, with the expected company and title, optional notes, and whether your resume is a weak match. Then run:
 
