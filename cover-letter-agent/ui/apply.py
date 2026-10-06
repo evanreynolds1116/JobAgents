@@ -77,13 +77,24 @@ def _url(link: str) -> str:
     return link if not link or "://" in link else f"https://{link}"
 
 
+def _save_name(app_id: int, column: str) -> None:
+    value = st.session_state.get(f"ap_{column}_{app_id}", "").strip()
+    db.update_application(app_id, **{column: value or None})
+
+
 def _not_started(app: dict) -> None:
-    st.caption(app.get("title") or "")
     with st.container(border=True, key="card_fill_start"):
         st.markdown("A Chrome window opens with the app's own profile. The agent finds the application form, "
                     "asks you to confirm it, fills what it can from your profile, resume, application answers "
                     "and approved letter, drafts short screening answers for you to check, and pauses for you to "
                     "review. **It never clicks Submit.** You log in and solve any CAPTCHA yourself.")
+        company, title = st.columns(2)
+        company.text_input("Company", value=app.get("company") or "", key=f"ap_company_{app['id']}",
+                           on_change=_save_name, args=(app["id"], "company"), placeholder="Company name")
+        title.text_input("Job title", value=app.get("title") or "", key=f"ap_title_{app['id']}",
+                         on_change=_save_name, args=(app["id"], "title"), placeholder="Job title")
+        if not (app.get("company") or "").strip():
+            st.caption("Add the company name so this application is easy to find in Applications.")
         link = st.text_input("Application link", value=app.get("url") or "", key=f"ap_link_{app['id']}",
                              placeholder="https://job-boards.greenhouse.io/company/jobs/123",
                              help="The company's posting or application page. The agent starts here.")

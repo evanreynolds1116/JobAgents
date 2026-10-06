@@ -91,6 +91,22 @@ def test_paste_a_different_application_link(went, monkeypatch):
     assert started
 
 
+def test_company_and_title_can_be_added(went, monkeypatch):
+    from storage import db
+
+    key()
+    monkeypatch.setattr(session, "_current", None)
+    app_id = db.create_application("https://jobs.example.com/1", "Posting text", "")
+    at = apply_page(app_id)
+    assert any("Add the company name" in c.value for c in at.caption)
+    at.text_input(key=f"ap_company_{app_id}").input(" Acme Health ").run()
+    at.text_input(key=f"ap_title_{app_id}").input("Backend Engineer").run()
+    app = db.get_application(app_id)
+    assert (app["company"], app["title"]) == ("Acme Health", "Backend Engineer")  # saved without starting
+    assert not any("Add the company name" in c.value for c in at.caption)
+    assert "Applications › Acme Health" in text(at)
+
+
 def test_open_the_form_starts_a_session(went, monkeypatch):
     key()
     monkeypatch.setattr(session, "_current", None)

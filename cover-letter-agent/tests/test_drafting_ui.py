@@ -539,7 +539,19 @@ def test_fill_without_a_letter_from_a_pasted_link(calls):
     assert calls.went == [("apply", {"app": 1})] and calls.counts["fetch"] == 1 and calls.counts["draft"] == 0
     app = db.get_application(1)
     assert app["url"] == "https://harpeth.example/careers/marketing" and app["posting_text"] == POSTING
+    assert app["company"] == "Harpeth"  # the page had no job data: guessed from the link
     assert db.list_drafts(1) == []
+
+
+def test_fill_without_a_letter_keeps_the_company_from_a_page_it_couldnt_read(calls, monkeypatch):
+    monkeypatch.setattr(fetch, "fetch", lambda url, client=None: fetch.FetchResult(
+        False, url, reason="This page builds itself with JavaScript.",
+        hints={"company": "OnePay", "title": "Software Engineer"}))
+    at = open_new_letter()
+    at.text_input(key="nl_url").input("https://jobs.ashbyhq.com/oneapp/123")
+    click(at, "Fill without a letter")
+    app = db.get_application(1)
+    assert (app["company"], app["title"], app["posting_text"]) == ("OnePay", "Software Engineer", "")
 
 
 def test_fill_without_a_letter_needs_a_link(calls):

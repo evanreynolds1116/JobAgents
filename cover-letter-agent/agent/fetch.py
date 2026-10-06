@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from html import unescape
 from html.parser import HTMLParser
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 import httpx
 import trafilatura
@@ -57,6 +57,49 @@ def blocked_domain(url: str) -> str | None:
         if host == domain or host.endswith("." + domain):
             return domain
     return None
+
+
+# Job sites that list other companies' jobs: their address says nothing about the employer.
+LISTING_SITES = NO_FETCH_DOMAINS + ("adzuna.com", "ziprecruiter.com", "monster.com", "dice.com", "simplyhired.com")
+# Application platforms where the company is the first part of the path ...
+ATS_PATH = ("greenhouse.io", "jobs.lever.co", "jobs.eu.lever.co", "jobs.ashbyhq.com", "apply.workable.com",
+            "jobs.smartrecruiters.com", "jobs.jobvite.com")
+# ... or the first part of the address (acme.wd5.myworkdayjobs.com, careers-acme.icims.com).
+ATS_SUBDOMAIN = ("myworkdayjobs.com", "bamboohr.com", "recruitee.com", "breezy.hr", "applytojob.com", "icims.com",
+                 "teamtailor.com", "pinpointhq.com", "rippling-ats.com")
+GENERIC_LABELS = {"www", "careers", "career", "jobs", "job", "apply", "boards", "job-boards", "hire", "talent",
+                  "recruiting", "work", "join"}
+
+
+def _company_name(slug: str) -> str:
+    """'acme-health' -> 'Acme Health'; 'OnePay' stays as written."""
+    words = [w for w in re.split(r"[-_.\s]+", slug) if w]
+    return " ".join(w if any(c.isupper() for c in w) else w.capitalize() for w in words)
+
+
+def company_from_url(url: str) -> str | None:
+    """A best guess at the employer from a posting link, for when the page doesn't say:
+    jobs.lever.co/acme and careers.acme.com both give "Acme". None for job listing sites."""
+    url = normalize_input_url(url)
+    host = _host(url)
+    if not host or any(host == d or host.endswith("." + d) for d in LISTING_SITES):
+        return None
+    parts = urlsplit(url)
+    path = [p for p in parts.path.split("/") if p]
+    for domain in ATS_PATH:
+        if host == domain or host.endswith("." + domain):
+            slug = parse_qs(parts.query).get("for", [""])[0] or next((p for p in path if p.lower() not in ("embed", "job_app", "en-us", "en")), "")
+            return _company_name(slug) if slug else None
+    labels = host.split(".")
+    for domain in ATS_SUBDOMAIN:
+        if host.endswith("." + domain):
+            first = re.sub(r"^careers?-", "", labels[0])
+            return _company_name(first) if first not in GENERIC_LABELS else None
+    # The company's own site: the name just before the top-level domain (acme.co.uk -> acme).
+    core = [label for label in labels if label not in GENERIC_LABELS]
+    if len(core) >= 3 and core[-2] in ("co", "com", "org", "net", "ac") and len(core[-1]) == 2:
+        core = core[:-1]
+    return _company_name(core[-2]) if len(core) >= 2 else None
 
 
 def fetch(url: str, client: httpx.Client | None = None) -> FetchResult:

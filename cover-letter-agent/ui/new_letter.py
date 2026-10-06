@@ -94,8 +94,10 @@ def _fill_without_letter() -> None:
         result = fetch.fetch(url)
     text = result.text if result.ok else ""
     app_id = db.create_application(url, text, st.session_state.get("nl_notes", ""))
-    if result.ok and result.hints:
-        db.update_application(app_id, company=result.hints.get("company"), title=result.hints.get("title"))
+    # The page's own job data when it has some (even if the rest couldn't be read), else a
+    # guess from the link. Both can be corrected on the Fill application screen.
+    company = result.hints.get("company") or fetch.company_from_url(url)
+    db.update_application(app_id, company=company, title=result.hints.get("title"))
     nav.go("apply", app=app_id)
 
 

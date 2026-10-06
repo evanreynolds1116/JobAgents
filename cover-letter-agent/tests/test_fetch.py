@@ -126,3 +126,21 @@ def test_endless_redirects_give_up():
     loop = lambda r: httpx.Response(302, headers={"location": "/again"})  # noqa: E731
     result = fetch.fetch("https://careers.example.com/start", client=client_for(loop))
     assert not result.ok and "redirects too many times" in result.reason
+
+
+@pytest.mark.parametrize("url, company", [
+    ("https://job-boards.greenhouse.io/acmehealth/jobs/123", "Acmehealth"),
+    ("https://boards.greenhouse.io/embed/job_app?for=acme&token=1", "Acme"),
+    ("jobs.lever.co/acme-health/abc", "Acme Health"),
+    ("https://jobs.ashbyhq.com/OnePay/123", "OnePay"),
+    ("https://acme.wd5.myworkdayjobs.com/en-US/External/job/1", "Acme"),
+    ("https://careers-acme.icims.com/jobs/1/job", "Acme"),
+    ("https://careers.acme.com/jobs/123", "Acme"),
+    ("https://www.acme.co.uk/careers/engineer", "Acme"),
+    ("https://jobs.harpeth-health.org/123", "Harpeth Health"),
+    ("https://www.adzuna.com/land/ad/123", None),
+    ("https://www.linkedin.com/jobs/view/123", None),
+    ("", None),
+])
+def test_company_from_url(url, company):
+    assert fetch.company_from_url(url) == company
