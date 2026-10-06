@@ -164,6 +164,10 @@ def test_upload_converts_resume(at):
     assert at.text_area(key="pf_resume_text").value.startswith("# Jordan Avery")
     assert resume.original_file().name == "resume_original.pdf"
     assert resume.has_resume()
+    profile_store.save(profile_store.Profile(name="Jordan Avery"))
+    at.run()  # the card shows the name forms get, not the stored file's
+    assert any("JordanAveryResume.pdf" in m.value for m in at.markdown)
+    assert not any("resume_original" in m.value for m in at.markdown)
 
 
 def test_upload_error_is_shown(at):

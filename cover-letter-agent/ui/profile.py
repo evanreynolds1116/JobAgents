@@ -2,6 +2,8 @@
 answers and saved answers, Milestone 6)."""
 
 from dataclasses import fields
+from html import escape
+from pathlib import Path
 
 import streamlit as st
 
@@ -280,7 +282,9 @@ def profile_page() -> None:
             st.subheader("Resume", anchor=False)
             original = resume.original_info()
             if original:
-                name, uploaded = original
+                stored, uploaded = original
+                # The name application forms get, from your saved name (see resume.upload_file).
+                name = escape(resume.upload_name(profile_store.load().name, Path(stored).suffix))
                 file_col, replace_col = st.columns([2, 1], vertical_alignment="center")
                 file_col.markdown(
                     f'<span class="ja-file">{name} <span class="ja-muted">· uploaded '
