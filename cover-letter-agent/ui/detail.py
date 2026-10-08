@@ -4,6 +4,7 @@ Key dates, the saved job description (kept even after the posting comes down),
 the exact letter version you approved, and a dated notes log.
 """
 
+from datetime import date
 from html import escape
 
 import streamlit as st
@@ -87,10 +88,15 @@ def _actions(app: dict, drafts: list[dict]) -> None:
         if app.get("url") and app["status"] in ("draft", "approved") and st.button(
                 "Fill application" if app["status"] == "approved" else "Fill without cover letter"):
             nav.go("apply", app=app_id)
-        if app["status"] in ("draft", "approved") and st.button("Mark as submitted"):
-            db.mark_submitted(app_id)
-            st.session_state.dt_flash = "Marked as submitted today. Good luck!"
-            st.rerun()
+        if app["status"] in ("draft", "approved"):
+            with st.popover("Mark as submitted"):
+                on = st.date_input("Day you applied", value=date.today(), max_value=date.today(),
+                                   key="dt_submitted_on", format="MM/DD/YYYY")
+                if st.button("Mark submitted", type="primary", key="dt_mark_submitted"):
+                    db.mark_submitted(app_id, on)
+                    day = "today" if on == date.today() else f"on {on:%b} {on.day}"
+                    st.session_state.dt_flash = f"Marked as submitted {day}. Good luck!"
+                    st.rerun()
         if app["status"] == "archived":
             if st.button("Restore"):
                 db.restore(app_id)

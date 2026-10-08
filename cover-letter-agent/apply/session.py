@@ -61,7 +61,7 @@ CHECK_PAGE = r"""
 
 def launch_browser(playwright, headless: bool = False):
     """Your installed Chrome, with the app's own profile so job-site logins persist."""
-    profile = config.DATA_DIR / PROFILE_DIR_NAME
+    profile = config.LOCAL_DIR / PROFILE_DIR_NAME
     profile.mkdir(parents=True, exist_ok=True)
     return playwright.chromium.launch_persistent_context(str(profile), channel="chrome", headless=headless,
                                                          no_viewport=True)

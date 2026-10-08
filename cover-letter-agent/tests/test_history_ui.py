@@ -1,6 +1,6 @@
 """Applications list, application detail, and export from the review screen."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -152,13 +152,24 @@ def test_notes_log(went):
 def test_mark_submitted_archive_and_restore(went):
     app_id = make("Northwind Outfitters", "Marketing Coordinator", status="approved")
     at = page("detail", app_id)
-    click(at, "Mark as submitted")
+    click(at, "Mark submitted")
     app = db.get_application(app_id)
     assert app["status"] == "submitted" and app["submitted_at"] and app["sent_version"] == 1
+    assert app["submitted_at"][:10] == date.today().isoformat()
     click(at, "Archive")
     assert db.get_application(app_id)["status"] == "archived"
     click(at, "Restore")
     assert db.get_application(app_id)["status"] == "submitted"
+
+
+def test_mark_submitted_on_an_earlier_day(went):
+    app_id = make("Northwind Outfitters", "Marketing Coordinator")
+    at = page("detail", app_id)
+    yesterday = date.today() - timedelta(days=1)
+    at.date_input(key="dt_submitted_on").set_value(yesterday).run()
+    click(at, "Mark submitted")
+    assert db.get_application(app_id)["submitted_at"] == f"{yesterday.isoformat()}T12:00:00"
+    assert f"Marked as submitted on {yesterday:%b} {yesterday.day}" in at.success[0].value
 
 
 def test_detail_without_application(went):
