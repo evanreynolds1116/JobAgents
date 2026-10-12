@@ -205,6 +205,14 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 
 ## Blockers & open questions
 
+- [ ] **PC: join the OneDrive sync** (the Mac was set up first on 2026-10-12, so the shared data is already in OneDrive; see the session log). On the PC:
+  1. Before switching, check whether the PC's own `cover-letter-agent/data` has anything to keep: applications in `app.db` (the shared data has one, Cribl, Software Engineer, Core Platform, submitted Oct 6), or changes to `profile.yaml`, `application_profile.yaml`, saved answers or `self_id.yaml`. Once the PC switches, its own `data` folder is no longer used. If it has anything, merge it into the shared `app.db` first, with the Mac's app closed. Don't copy the PC's `data` folder over the shared one
+  2. Install OneDrive and sign in to the same Microsoft account as the Mac. Wait for `OneDrive\JobAgents` (with `data` and `output`) to download, then right-click it and choose **Always keep on this device**
+  3. In the repo: `git pull`, then `.venv\Scripts\python -m pip install -r requirements.txt`
+  4. Add `SYNC_FOLDER=C:\Users\<you>\OneDrive\JobAgents` to `cover-letter-agent\.env` (check the real path in File Explorer; a work or school account uses `OneDrive - <name>`)
+  5. Make sure the app isn't open on the Mac (it shows "Open on another computer" if it is), start the app on the PC and check that the Cribl application, profile and resume are there
+  6. Daily job search: turn it on from one computer only; the setting is shared
+
 - [x] Drafted screening answers: no separate claim check (your choice, 2026-10-05)
 
 - [ ] Milestone 7 live check: fill in your application answers, then choose 5 real Greenhouse or Lever postings you'd consider applying to. Each needs an application with an approved letter (about $0.10 per letter, a few cents per form mapping). The agent then fills each form in a visible Chrome window with your real details, never submitting; you watch, and we count fields filled correctly (target 90% of non-sensitive fields)
@@ -241,6 +249,12 @@ The cover letter agent comes first, then job search (Phase 3), then the applicat
 - [x] Refusal fallback and skipping LinkedIn/Indeed-type sites approved 2026-10-01
 
 ## Session log
+
+### 2026-10-12 (Mac joins the OneDrive sync)
+- Pulled Oct 8's "two computers" commit and merged it with the two local Mac commits (only conflict: this file's decisions table, kept both sides). Tests: 512 passed, 1 skipped.
+- Mac set up as the first computer: OneDrive installed (personal account), the Mac's data copied, not moved, to `~/Library/CloudStorage/OneDrive-Personal/JobAgents/data` (`app.db`, `profile.yaml`, `application_profile.yaml`, `resume.md`, `resume_original.pdf`, `self_id.yaml`) plus an empty `output`, every file checked byte for byte, and `SYNC_FOLDER=~/Library/CloudStorage/OneDrive-Personal/JobAgents` added to the Mac's `.env`. `browser_profile` and `upload` stay local. The Mac's old `cover-letter-agent/data` is kept as a backup and no longer used.
+- Checked: the app on the Mac loads the Cribl application, profile and resume from OneDrive; the lock file appears there under the Mac's name and is removed on exit; OneDrive reports the files uploaded.
+- Next: the PC joins (see Blockers & open questions).
 
 ### 2026-10-06 (empty job description fix)
 - Set up on a Mac (`~/Workspace/JobAgents`): venv on Python 3.12.12, 472 passed, 1 skipped; Desktop alias to `run.command`.
