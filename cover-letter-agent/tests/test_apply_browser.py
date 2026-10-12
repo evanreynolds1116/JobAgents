@@ -255,6 +255,29 @@ def test_session_from_adzuna_link_to_hand_over(app_id, tmp_path):
     assert sess.snapshot()["state"] == "closed"
 
 
+FRAME = '<iframe title="recaptcha challenge expires in two minutes" src="about:blank" style="{}"></iframe>'
+FORM = '<form><label>First name <input name="first"></label>{}</form>'
+
+
+@pytest.mark.parametrize("html, expected", [
+    # Invisible reCAPTCHA as Ashby and Greenhouse load it: there, but not shown (the false pause)
+    (FORM.format('<div style="visibility:hidden">' + FRAME.format("width:1398px;height:150px") + "</div>"), ""),
+    (FORM.format(FRAME.format("position:absolute;top:-10000px;width:400px;height:580px")), ""),
+    (FORM.format('<div style="opacity:0">' + FRAME.format("width:400px;height:580px") + "</div>"), ""),
+    (FORM.format('<div style="display:none">' + FRAME.format("width:400px;height:580px") + "</div>"), ""),
+    # A checkbox CAPTCHA on the form is yours to tick before Submit, not a reason to stop
+    (FORM.format('<iframe title="reCAPTCHA" src="about:blank" style="width:304px;height:78px"></iframe>'), ""),
+    # A challenge actually showing, a full-page check, and a login
+    (FORM.format(FRAME.format("width:400px;height:580px")), "captcha"),
+    ("<main><h1>Verify you are human</h1><p>Checking your browser.</p></main>", "captcha"),
+    ('<form><label>Password <input type="password"></label></form>', "login"),
+    (FORM.format(""), ""),
+])
+def test_check_page_pauses_only_for_a_check_you_can_see(page, html, expected):
+    page.set_content(f"<html><body>{html}</body></html>")
+    assert page.evaluate(session.CHECK_PAGE) == expected
+
+
 def test_session_pauses_for_login_and_can_stop(app_id, tmp_path):
     sess = session.Session(app_id, "https://careers.acme.example/login-wall", lambda fields: [], {},
                            launcher=headless(tmp_path), headless=True, setup=offline_pages).start()

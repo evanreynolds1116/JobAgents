@@ -48,10 +48,16 @@ CHECK_PAGE = r"""
 () => {
   const visible = el => !!(el.offsetParent || el.getClientRects().length);
   if ([...document.querySelectorAll('input[type=password]')].some(visible)) return 'login';
-  const challenge = [...document.querySelectorAll('iframe')].some(f => {
+  // Only a challenge you can see. Invisible reCAPTCHA (Ashby, Greenhouse) keeps a large
+  // "challenge" frame on every form, hidden or parked off the page until a site shows it.
+  const shown = f => {
     const r = f.getBoundingClientRect();
-    return /captcha|challenge|turnstile/i.test((f.src || '') + (f.title || '')) && r.width >= 250 && r.height >= 150;
-  });
+    if (r.width < 250 || r.height < 150 || r.bottom + scrollY <= 0 || r.right + scrollX <= 0) return false;
+    return f.checkVisibility ? f.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})
+                             : getComputedStyle(f).visibility !== 'hidden';
+  };
+  const challenge = [...document.querySelectorAll('iframe')].some(f =>
+    /captcha|challenge|turnstile/i.test((f.src || '') + (f.title || '')) && shown(f));
   if (challenge || /verify (that )?you are (a )?human|are you a robot|security check/i.test(document.body.innerText.slice(0, 3000)))
     return 'captcha';
   return '';
