@@ -114,24 +114,38 @@ Close the app, then from the `cover-letter-agent` folder:
 
 Start the app again. Database changes are applied automatically on start-up, and your data is kept.
 
-### Back up, and use more than one computer
+### Back up
 
-Everything personal is in the `cover-letter-agent` folder and is gitignored, so `git pull` never touches it:
+Everything personal is gitignored, so `git pull` never touches it:
 
 | Path | What it holds |
 | --- | --- |
-| `.env` | Your API keys |
+| `.env` | Your API keys and settings, on each computer |
 | `data/app.db` | Applications, letter drafts, jobs, saved answers, the watch list and settings |
 | `data/profile.yaml`, `data/resume.md`, `data/resume_original.*` | Your profile and resume |
 | `data/application_profile.yaml`, `data/self_id.yaml` | Application answers and self-identification answers |
-| `data/browser_profile/` | The app's own Chrome profile, with sign-ins to job sites |
 | `output/` | Exported letters, evaluation reports and labeling sheets |
+| `cover-letter-agent/data/browser_profile/` | The app's own Chrome profile, with sign-ins to job sites. Always on each computer |
 
-To back up, close the app and copy `.env`, `data/` and `output/` somewhere safe.
+`data/` and `output/` sit in `cover-letter-agent`, or in your sync folder if you set one up (below). To back up, quit the app and copy them, and `.env`, somewhere safe.
 
-To set up a second computer, such as a Mac laptop alongside a Windows desktop, install the app there as above. Then either start fresh, or close the app on both computers and copy `.env`, `data/` and `output/` across into `cover-letter-agent`. Leave out `data/browser_profile/`: a Chrome profile doesn't carry between Windows and a Mac, so sign in to job sites again on the new computer. These files work the same on both systems.
+### Use it on two computers (OneDrive)
 
-The two copies don't sync. Applications, letters and answers you add on one computer won't appear on the other until you copy the files again, and copying overwrites what's there. Keep one computer as the main one, or copy the whole set each time you switch. If the daily search is on in both copies, both run it and both count against your Adzuna limit, so turn the schedule on in only one.
+Your applications, letters, answers and exports can be shared between computers, such as a Windows desktop and a Mac laptop, through a OneDrive folder. Each computer keeps its own `.env` and its own Chrome sign-ins.
+
+**Use the app on one computer at a time.** The data is a single database file, and if both computers changed it at once, OneDrive would keep one computer's changes and set the other's aside. The app checks this for you. While it's open on one computer, the other shows "Open on another computer" and waits. When you're done on one computer, click **Quit app** at the bottom of the sidebar, give OneDrive a minute to sync, then open the app on the other. If you just close the window instead, the other computer can start once the old lock has expired, within about 3 minutes.
+
+Setup:
+
+1. **First computer (the one with your data).** Quit the app. Create the folder `OneDrive\JobAgents`, move `data` (all of it except `browser_profile` and `upload`) and `output` from `cover-letter-agent` into it, and add a line to `.env`:
+   - Windows: `SYNC_FOLDER=C:\Users\<you>\OneDrive\JobAgents`
+   - Mac: `SYNC_FOLDER=~/Library/CloudStorage/OneDrive-Personal/JobAgents`
+2. Start the app and check your applications are there. Then let OneDrive finish uploading (its icon shows when it's up to date).
+3. **Second computer.** Install OneDrive and sign in to the same Microsoft account. On a Mac, get it from the App Store; the folder appears in Finder under Locations. Wait for the `JobAgents` folder to download. Then right-click it and choose **Always Keep on This Device**, so the database is always there in full.
+4. Install the app on the second computer as above, and add its `SYNC_FOLDER` line to `.env`. Anything the second computer had of its own stays in its `cover-letter-agent/data` and is no longer used. Add any applications from it again on the shared data.
+5. Turn the daily search on only once: the setting is shared, and it runs on whichever computer has the app open.
+
+The lock goes by computer name, so give your two computers different names (they normally have them).
 
 ### Hosting it online
 

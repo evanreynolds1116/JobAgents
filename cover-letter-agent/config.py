@@ -10,8 +10,22 @@ from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parent
 ENV_PATH = ROOT / ".env"
-DATA_DIR = ROOT / "data"
-OUTPUT_DIR = ROOT / "output"
+# This computer only, even when the rest syncs: the app's Chrome profile (job-site sign-ins
+# don't carry between computers) and the resume copy made for each upload.
+LOCAL_DIR = ROOT / "data"
+
+
+def sync_folder(env_path: Path | None = None) -> Path | None:
+    """SYNC_FOLDER in .env: a folder that syncs between your computers (for example in
+    OneDrive) holding data/ and output/. Read once at start-up; restart after changing it."""
+    env_path = env_path or ENV_PATH
+    raw = ((dotenv_values(env_path) if env_path.exists() else {}).get("SYNC_FOLDER") or "").strip()
+    return Path(raw).expanduser() if raw else None
+
+
+SYNC_FOLDER = sync_folder()
+DATA_DIR = SYNC_FOLDER / "data" if SYNC_FOLDER else LOCAL_DIR
+OUTPUT_DIR = SYNC_FOLDER / "output" if SYNC_FOLDER else ROOT / "output"
 DB_PATH = DATA_DIR / "app.db"
 
 DEFAULT_MODEL = "claude-opus-5-5"
@@ -58,5 +72,5 @@ def load_settings(env_path: Path | None = None) -> Settings:
 
 
 def ensure_dirs() -> None:
-    for folder in (DATA_DIR, OUTPUT_DIR):
+    for folder in (DATA_DIR, OUTPUT_DIR, LOCAL_DIR):
         folder.mkdir(parents=True, exist_ok=True)

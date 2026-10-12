@@ -68,11 +68,11 @@ def upload_name(name: str, suffix: str) -> str:
 
 def upload_file(name: str) -> Path | None:
     """A copy of the original named for uploading to forms (data/upload/), refreshed each time,
-    so a replaced resume is never sent under an old copy."""
+    so a replaced resume is never sent under an old copy. Kept on this computer only."""
     original = original_file()
     if original is None:
         return None
-    folder = config.DATA_DIR / "upload"
+    folder = config.LOCAL_DIR / "upload"
     folder.mkdir(parents=True, exist_ok=True)
     for old in folder.glob("*Resume.*"):
         old.unlink()

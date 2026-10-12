@@ -331,9 +331,13 @@ def add_note(app_id: int, text: str) -> None:
     update_application(app_id, notes=notes)
 
 
-def mark_submitted(app_id: int) -> None:
-    """You applied (the app never submits anything itself)."""
-    update_application(app_id, status="submitted", submitted_at=_now())
+def mark_submitted(app_id: int, on=None) -> None:
+    """You applied (the app never submits anything itself). `on` is the day you applied, if
+    it wasn't today (a datetime.date)."""
+    from datetime import date
+
+    when = _now() if on is None or on == date.today() else f"{on.isoformat()}T12:00:00"
+    update_application(app_id, status="submitted", submitted_at=when)
 
 
 def archive(app_id: int) -> None:
