@@ -157,7 +157,7 @@ def _watch_list() -> None:
         if msg := st.session_state.pop("pf_watch_msg", None):
             getattr(st, msg[0])(msg[1])
 
-PROFILE_FIELDS = ("name", "email", "country_code", "phone", "city", "linkedin", "portfolio",
+PROFILE_FIELDS = ("name", "email", "country_code", "phone", "city", "linkedin", "github", "portfolio",
                   "tone", "length", "sign_off", "always_mention", "never_mention")
 
 
@@ -347,7 +347,8 @@ def profile_page() -> None:
             city.text_input("City", key="pf_city", placeholder="City, State")
             a, b = st.columns(2)
             a.text_input("LinkedIn", key="pf_linkedin", placeholder="https://www.linkedin.com/in/…")
-            b.text_input("Portfolio or website", key="pf_portfolio", placeholder="https://")
+            b.text_input("GitHub", key="pf_github", placeholder="https://github.com/…")
+            st.text_input("Portfolio or website", key="pf_portfolio", placeholder="https://")
             a, b = st.columns(2)
             a.selectbox("Default tone", profile_store.TONES, key="pf_tone")
             b.selectbox("Default length", profile_store.LENGTHS, key="pf_length")

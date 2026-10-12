@@ -78,6 +78,14 @@ def sources(**overrides) -> mapping.Sources:
     return mapping.Sources(**base)
 
 
+def test_profile_links_reach_the_mapping():
+    profile = Profile(name="Jordan Avery", linkedin="https://www.linkedin.com/in/jordanavery",
+                      github="https://github.com/jordanavery", portfolio="https://jordanavery.example")
+    block = json.loads(sources(profile=profile).blocks()["profile"])
+    assert (block["linkedin"], block["github"], block["portfolio"]) == (
+        "https://www.linkedin.com/in/jordanavery", "https://github.com/jordanavery", "https://jordanavery.example")
+
+
 def proposal(value, source="profile", confident=True, action="fill", note=""):
     return {"key": "x", "action": action, "value": value, "source": source, "confident": confident, "note": note}
 

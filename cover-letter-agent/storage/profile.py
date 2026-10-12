@@ -25,6 +25,7 @@ class Profile:
     city: str = ""
     linkedin: str = ""
     portfolio: str = ""
+    github: str = ""
     tone: str = TONES[0]
     length: str = LENGTHS[0]
     sign_off: str = "Thanks for your time,"
@@ -40,11 +41,13 @@ class Profile:
         code = normalize_country_code(self.country_code)
         if code and not re.fullmatch(r"\+\d{1,4}", code):
             found.append("The country code should look like +1 or +44.")
-        for label, url in (("LinkedIn", self.linkedin), ("portfolio", self.portfolio)):
+        for label, url in (("LinkedIn", self.linkedin), ("GitHub", self.github), ("portfolio", self.portfolio)):
             if url and not url.startswith(("http://", "https://")):
                 found.append(f"The {label} link should start with https://")
         if self.linkedin and "linkedin.com" not in self.linkedin.lower():
             found.append("The LinkedIn link doesn't look like a linkedin.com address.")
+        if self.github and "github.com" not in self.github.lower():
+            found.append("The GitHub link doesn't look like a github.com address.")
         return found
 
 

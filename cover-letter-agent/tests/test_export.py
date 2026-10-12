@@ -36,6 +36,13 @@ def test_docx_layout():
     ]
 
 
+def test_contact_line_lists_each_link():
+    profile = Profile(email="jordan@example.com", linkedin="https://www.linkedin.com/in/jordan-example/",
+                      github="https://github.com/jordan-example", portfolio="https://www.jordan.example/")
+    assert exporter.contact_line(profile) == ("jordan@example.com · linkedin.com/in/jordan-example · "
+                                              "github.com/jordan-example · jordan.example")
+
+
 def test_docx_without_contact_details():
     data = exporter.build_docx("Dear Dana,\n\nHello.", Profile(), when=date(2026, 10, 1))
     assert paragraphs(data) == ["October 1, 2026", "Dear Dana,", "Hello."]

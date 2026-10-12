@@ -165,7 +165,7 @@ Everything lives in the local `data/` folder. Nothing is stored online except wh
 | --- | --- | --- | --- |
 | Resume | `data/resume.md` | Markdown text | Upload a PDF or .docx once; the app converts it to text, and you can review and correct it in the UI |
 | Original resume file | `data/resume_original.*` | PDF or .docx | Kept for reference only |
-| Profile | `data/profile.yaml` | YAML | Name, email, phone, city, LinkedIn or portfolio URL, preferred tone, target length, sign-off, things to always or never mention, and one or more samples of your own writing |
+| Profile | `data/profile.yaml` | YAML | Name, email, phone, city, LinkedIn, GitHub and portfolio or website URLs, preferred tone, target length, sign-off, things to always or never mention, and one or more samples of your own writing |
 | Applications | `data/app.db`, table `applications` | SQLite | `id`, `url`, `company`, `title`, `posting_text`, `user_notes`, `parsed_json`, `match_json`, `status` (draft / approved / submitted / archived), `created_at`, `approved_at`, `submitted_at`, `sent_version`, `notes` (dated entries) |
 | Draft versions | `data/app.db`, table `drafts` | SQLite | `id`, `application_id`, `version`, `text`, `verify_json`, `feedback` (what you asked to change), `resume_hash`, `created_at` |
 | Exported letters | `output/` | .docx and .pdf | Named `Company - Title - Cover Letter.docx` |

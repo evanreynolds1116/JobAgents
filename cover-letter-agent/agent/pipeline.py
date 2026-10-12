@@ -397,6 +397,7 @@ def profile_text(profile) -> str:
         f"Phone: {profile.country_code} {profile.phone}" if profile.phone else "",
         f"City: {profile.city}" if profile.city else "",
         f"LinkedIn: {profile.linkedin}" if profile.linkedin else "",
+        f"GitHub: {profile.github}" if profile.github else "",
         f"Portfolio: {profile.portfolio}" if profile.portfolio else "",
         f"Always mention: {profile.always_mention}" if profile.always_mention else "",
     ]

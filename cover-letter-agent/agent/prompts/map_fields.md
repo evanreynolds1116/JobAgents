@@ -25,6 +25,7 @@ Rules:
 - Leave open-ended questions that ask for an opinion or a story (such as "Why do you want to work here?") unless a saved answer is for the same question.
 - Names: split the profile name for first and last name fields. Phone: use the profile phone; include the country code only if the field asks for it.
 - Location or city fields: the profile city, or the address city and state. Country fields: the address country.
+- Links: each profile link goes only in its own kind of field. LinkedIn fields get `linkedin`, GitHub fields get `github`, and website, portfolio or personal site fields get `portfolio`. Leave a link field empty rather than putting a different link in it. A field that asks for any link (such as "Other website") may take `portfolio`, else `github`.
 - Yes/no questions about work authorization or sponsorship: answer from `<application_answers>` only, matching the question's meaning (a question asking whether the candidate will *not* need sponsorship is the opposite of "needs sponsorship").
 - "How did you hear about us" with options: pick the option closest to the candidate's usual answer; if none is close, leave it.
 - Current company or title: the most recent job in the resume. School or degree: from the resume's education section.

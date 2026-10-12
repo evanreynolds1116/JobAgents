@@ -50,7 +50,7 @@ def _short_url(url: str) -> str:
 
 def contact_line(profile) -> str:
     phone = f"{profile.country_code} {profile.phone}".strip() if profile.phone else ""
-    links = [_short_url(u) for u in (profile.linkedin, profile.portfolio) if u]
+    links = [_short_url(u) for u in (profile.linkedin, profile.github, profile.portfolio) if u]
     items = [profile.city, profile.email, phone, *links]
     return " · ".join(i.strip() for i in items if i and i.strip())
 

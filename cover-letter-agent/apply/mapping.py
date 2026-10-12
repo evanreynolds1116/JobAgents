@@ -80,7 +80,7 @@ class Sources:
     def blocks(self) -> dict[str, str]:
         p, a = self.profile, self.answers
         profile = {"name": p.name, "email": p.email, "phone": p.phone, "phone_country_code": p.country_code,
-                   "city": p.city, "linkedin": p.linkedin, "portfolio": p.portfolio}
+                   "city": p.city, "linkedin": p.linkedin, "github": p.github, "portfolio": p.portfolio}
         answers = {k: v for k, v in asdict(a).items()}
         saved = [{"question": s["question"], "answer": s["answer"]} for s in self.saved_answers]
         return {"profile": json.dumps(profile, ensure_ascii=False, indent=1),

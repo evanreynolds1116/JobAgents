@@ -54,13 +54,15 @@ def test_hand_edited_file_is_tolerated(app_paths):
 def test_problems_flag_bad_email_code_and_links():
     p = profile_store.Profile(
         email="jordan.example.com", country_code="+1-800",
-        linkedin="linkedin.com/in/jordan", portfolio="jordan.example",
+        linkedin="linkedin.com/in/jordan", portfolio="jordan.example", github="github.com/jordan",
     )
-    assert len(p.problems()) == 4
+    assert len(p.problems()) == 5
     assert len(profile_store.Profile(linkedin="https://jordan.example").problems()) == 1
+    assert profile_store.Profile(github="https://jordan.example").problems() == [
+        "The GitHub link doesn't look like a github.com address."]
     good = profile_store.Profile(
-        email="j@example.com", country_code="44",
-        linkedin="https://www.linkedin.com/in/jordan", portfolio="https://jordan.example",
+        email="j@example.com", country_code="44", linkedin="https://www.linkedin.com/in/jordan",
+        github="https://github.com/jordan", portfolio="https://jordan.example",
     )
     assert good.problems() == []
 
@@ -123,6 +125,7 @@ def test_edits_persist_after_restart(at):
     at.text_input(key="pf_country_code").input("44")
     at.text_input(key="pf_linkedin").input("https://www.linkedin.com/in/jordan")
     at.text_input(key="pf_portfolio").input("https://jordan.example")
+    at.text_input(key="pf_github").input("https://github.com/jordan")
     at.selectbox(key="pf_tone").select("More formal")
     at.text_area(key="pf_sample_0").input("A past cover letter I liked.")
     at.text_area(key="pf_resume_text").input("# Jordan Avery\n\n## Experience\n\nEdited by hand.")
@@ -138,6 +141,8 @@ def test_edits_persist_after_restart(at):
     assert again.selectbox(key="pf_tone").value == "More formal"
     assert again.text_input(key="pf_country_code").value == "+44"
     assert again.text_input(key="pf_portfolio").value == "https://jordan.example"
+    assert again.text_input(key="pf_github").value == "https://github.com/jordan"
+    assert profile_store.load().github == "https://github.com/jordan"
     assert again.text_area(key="pf_sample_0").value == "A past cover letter I liked."
     assert "Edited by hand." in again.text_area(key="pf_resume_text").value
 
